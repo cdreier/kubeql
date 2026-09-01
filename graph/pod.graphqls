@@ -1,0 +1,81 @@
+"""
+Filter pods by name, labels, phase, and readiness.
+"""
+input PodFilter {
+  """Case-insensitive substring match on pod name."""
+  nameContains: String
+
+  """Kubernetes label selector (e.g. "app=api")."""
+  labelSelector: String
+
+  """Exact pod phase (Pending, Running, Succeeded, Failed, Unknown)."""
+  phase: String
+
+  """When set, only pods with this overall ready state."""
+  ready: Boolean
+}
+
+type Pod {
+  """Kubeconfig context this resource was loaded from."""
+  context: String!
+  name: String!
+  namespace: String!
+  phase: String!
+  ready: Boolean!
+  restarts: Int!
+  lastRestartAt: Time
+  """Pod creation time (metadata.creationTimestamp)."""
+  createdAt: Time
+  nodeName: String
+  labels: [Label!]!
+  containers: [Container!]!
+  """Full object as YAML."""
+  yaml: String!
+  """Optional; requires metrics-server. Null when unavailable."""
+  cpuUsage: String
+  """Sum of container CPU limits from the pod spec. Null when unset."""
+  cpuLimit: String
+  """Optional; requires metrics-server. Null when unavailable."""
+  memoryUsage: String
+  """Sum of container memory limits from the pod spec. Null when unset."""
+  memoryLimit: String
+}
+
+type Container {
+  name: String!
+  image: String!
+  ready: Boolean!
+  restartCount: Int!
+  """e.g. Running, Waiting, Terminated."""
+  state: String!
+}
+
+type LogLine {
+  timestamp: Time
+  line: String!
+  container: String
+}
+
+extend type Query {
+  """List pods. Namespace is optional (all namespaces when omitted)."""
+  pods(context: String!, namespace: String, filter: PodFilter): [Pod!]!
+
+  """Get a single pod."""
+  pod(context: String!, namespace: String!, name: String!): Pod
+}
+
+extend type Subscription {
+  """
+  Stream container logs for a pod. Prefer this over a one-shot query.
+  """
+  podLogs(
+    context: String!
+    namespace: String!
+    name: String!
+    container: String
+    tailLines: Int
+  ): LogLine!
+
+  """Push updates when pod status changes."""
+  podStatus(context: String!, namespace: String!, name: String!): Pod!
+}

@@ -1,0 +1,68 @@
+# gqlgen configuration — https://gqlgen.com/config/
+schema:
+  - graph/*.graphqls
+
+exec:
+  filename: graph/generated.go
+  package: graph
+
+model:
+  filename: graph/model/models_gen.go
+  package: model
+
+resolver:
+  layout: follow-schema
+  dir: graph
+  package: graph
+  filename_template: "{name}.resolvers.go"
+
+autobind: []
+
+models:
+  Time:
+    model:
+      - github.com/99designs/gqlgen/graphql.Time
+  KubeContext:
+    fields:
+      namespaces:
+        resolver: true
+      namespace:
+        resolver: true
+      deployments:
+        resolver: true
+      deployment:
+        resolver: true
+      pods:
+        resolver: true
+      pod:
+        resolver: true
+  Namespace:
+    fields:
+      deployments:
+        resolver: true
+      pods:
+        resolver: true
+  Deployment:
+    fields:
+      pods:
+        resolver: true
+      yaml:
+        resolver: true
+      restarts:
+        resolver: true
+      configMaps:
+        resolver: true
+      secrets:
+        resolver: true
+  ConfigMap:
+    fields:
+      yaml:
+        resolver: true
+  Secret:
+    fields:
+      yaml:
+        resolver: true
+  Pod:
+    fields:
+      yaml:
+        resolver: true

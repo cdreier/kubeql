@@ -1,0 +1,165 @@
+.log-viewer {
+  margin-bottom: 1.5rem;
+}
+
+.log-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.log-toolbar h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.log-select,
+.log-filter {
+  background: #0f1115;
+  border: 1px solid #3c4454;
+  border-radius: 6px;
+  color: #e8eaed;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.85rem;
+  max-width: 100%;
+}
+
+.log-select {
+  max-width: 18rem;
+}
+
+.log-filter {
+  flex: 1 1 10rem;
+  min-width: 8rem;
+}
+
+.log-select:focus,
+.log-filter:focus {
+  outline: none;
+  border-color: #8ab4f8;
+}
+
+.log-count {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+}
+
+.log-pods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.65rem;
+}
+
+.log-pod-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid #3c4454;
+  border-radius: 999px;
+  background: #0f1115;
+  color: #9aa0a6;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  cursor: pointer;
+}
+
+.log-pod-chip:hover {
+  border-color: #5f6b7c;
+  color: #e8eaed;
+}
+
+.log-pod-chip.on {
+  background: #161a22;
+}
+
+.log-pod-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.log-error {
+  margin: 0 0 0.5rem;
+}
+
+.log-scroller {
+  border: 1px solid #2a2f3a;
+  border-radius: 0 0 8px 8px;
+  background: #0f1115;
+  max-height: 28rem;
+  overflow: auto;
+}
+
+.log-empty {
+  margin: 0;
+  padding: 0.85rem 1rem;
+}
+
+.log-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.log-line {
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.05rem 0.85rem;
+  color: #c4c7cc;
+}
+
+.log-line:hover {
+  background: #161a22;
+}
+
+.log-ts {
+  flex: 0 0 6.4rem;
+  color: #5f6368;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.log-pod {
+  flex: 0 0 5.5rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-ctr {
+  flex: 0 0 auto;
+  color: #9aa0a6;
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.log-line.err .log-text {
+  color: #f28b82;
+}
+
+.log-line.warn .log-text {
+  color: #fdd663;
+}
+
+.log-line.in-range {
+  background: #1c2230;
+}

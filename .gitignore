@@ -1,0 +1,11 @@
+/bin/
+*.exe
+*.test
+.idea/
+.vscode/
+*.out
+
+# Frontend
+web/node_modules/
+web/dist/assets/
+web/schema.graphql

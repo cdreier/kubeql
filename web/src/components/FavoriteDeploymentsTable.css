@@ -1,0 +1,38 @@
+.fav-deps {
+  margin-bottom: 2.25rem;
+}
+
+.fav-deps h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+.fav-dep-table .fav-star-cell {
+  width: 2.5rem;
+  padding-left: 0.35rem;
+  padding-right: 0;
+  vertical-align: middle;
+}
+
+.fav-ctx-cell {
+  vertical-align: top;
+  max-width: 16rem;
+  background: #1a1f2a;
+  border-right: 1px solid #2a2f3a;
+}
+
+.fav-ctx-name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.82rem;
+  word-break: break-all;
+  color: #e8eaed;
+}
+
+.fav-ctx-cluster {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  word-break: break-all;
+}

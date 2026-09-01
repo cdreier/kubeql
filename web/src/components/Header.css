@@ -1,0 +1,62 @@
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid #2a2f3a;
+  background: #12151c;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+  color: #e8eaed;
+  text-decoration: none;
+}
+
+.brand:hover {
+  color: #fff;
+}
+
+.sep {
+  color: #5f6368;
+  user-select: none;
+}
+
+.subtitle {
+  color: #9aa0a6;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(60vw, 48rem);
+}
+
+a.crumb-link {
+  text-decoration: none;
+}
+
+a.crumb-link:hover {
+  color: #e8eaed;
+  text-decoration: underline;
+}
+
+.header-nav {
+  margin-left: auto;
+  display: flex;
+  gap: 1rem;
+}
+
+.header-nav a {
+  color: #8ab4f8;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.header-nav a:hover {
+  text-decoration: underline;
+}

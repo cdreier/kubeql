@@ -1,0 +1,31 @@
+.fav-btn {
+  flex: 0 0 2.75rem;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #5f6368;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fav-btn svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.fav-btn:hover,
+.fav-btn:focus-visible {
+  color: #fdd663;
+}
+
+.fav-btn[aria-pressed="true"] {
+  color: #fdd663;
+}

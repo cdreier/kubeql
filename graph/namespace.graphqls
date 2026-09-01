@@ -1,0 +1,30 @@
+"""
+Filter namespaces by name and/or by whether they contain matching resources.
+Example: namespaces that have a deployment whose name contains "api".
+"""
+input NamespaceFilter {
+  """Case-insensitive substring match on namespace name."""
+  nameContains: String
+
+  """Keep namespaces that have at least one deployment matching this filter."""
+  hasDeployment: DeploymentFilter
+
+  """Keep namespaces that have at least one pod matching this filter."""
+  hasPod: PodFilter
+}
+
+type Namespace {
+  """Kubeconfig context this resource was loaded from."""
+  context: String!
+  name: String!
+  deployments(filter: DeploymentFilter): [Deployment!]!
+  pods(filter: PodFilter): [Pod!]!
+}
+
+extend type Query {
+  """List namespaces in the given kubeconfig context."""
+  namespaces(context: String!, filter: NamespaceFilter): [Namespace!]!
+
+  """Get a single namespace in the given kubeconfig context."""
+  namespace(context: String!, name: String!): Namespace
+}

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="KubeQL">
+  <title>KubeQL</title>
+  <defs>
+    <linearGradient id="mark" x1="18%" y1="8%" x2="88%" y2="96%">
+      <stop offset="0%" stop-color="#a8c7fa"/>
+      <stop offset="55%" stop-color="#8ab4f8"/>
+      <stop offset="100%" stop-color="#81c995"/>
+    </linearGradient>
+    <linearGradient id="ql" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8ab4f8"/>
+      <stop offset="100%" stop-color="#81c995"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Mark: Kubernetes-style hex + query node -->
+  <g transform="translate(28,22)">
+    <polygon
+      points="78,6 140,42 140,114 78,150 16,114 16,42"
+      fill="none"
+      stroke="url(#mark)"
+      stroke-width="8"
+      stroke-linejoin="round"
+    />
+    <circle cx="78" cy="78" r="11" fill="url(#mark)"/>
+    <circle cx="50" cy="56" r="6.5" fill="#8ab4f8"/>
+    <circle cx="110" cy="58" r="6.5" fill="#81c995"/>
+    <circle cx="62" cy="108" r="6.5" fill="#a8c7fa"/>
+    <circle cx="104" cy="106" r="6.5" fill="#81c995"/>
+    <path
+      d="M50 56 L78 78 L110 58 M78 78 L62 108 M78 78 L104 106"
+      fill="none"
+      stroke="url(#mark)"
+      stroke-width="4"
+      stroke-linecap="round"
+    />
+  </g>
+
+</svg>

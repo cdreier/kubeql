@@ -1,0 +1,76 @@
+.context-list-page h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+.context-list {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.context-list li {
+  border-bottom: 1px solid #2a2f3a;
+  background: #161a22;
+}
+
+.context-list li:last-child {
+  border-bottom: none;
+}
+
+.context-list li.empty {
+  padding: 0.75rem 1rem;
+}
+
+.context-item {
+  display: flex;
+  align-items: stretch;
+}
+
+.context-item:hover {
+  background: #1c2230;
+}
+
+.context-row {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem 0.85rem 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.context-name {
+  font-weight: 600;
+  color: #e8eaed;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  word-break: break-all;
+}
+
+.context-meta {
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.badge.current {
+  background: #1e3a2f;
+  color: #81c995;
+}

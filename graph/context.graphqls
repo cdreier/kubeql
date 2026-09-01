@@ -1,0 +1,48 @@
+"""
+A context entry from the loaded kubeconfig.
+Cluster resources are nested here so one clientset is used per context.
+"""
+type KubeContext {
+  name: String!
+  cluster: String!
+  user: String!
+  """Default namespace from the kubeconfig context entry, if set."""
+  defaultNamespace: String
+  """True if this is the CLI/--context or kubeconfig current-context default."""
+  current: Boolean!
+
+  """
+  List namespaces in this context.
+  Unreachable/stale clusters log the error and return [] so other contexts still resolve.
+  """
+  namespaces(filter: NamespaceFilter): [Namespace!]!
+
+  """Get a single namespace in this context. Null if missing or cluster unreachable."""
+  namespace(name: String!): Namespace
+
+  """
+  List deployments. Namespace is optional (all namespaces when omitted).
+  Unreachable clusters return [] (same best-effort behavior as namespaces).
+  """
+  deployments(namespace: String, filter: DeploymentFilter): [Deployment!]!
+
+  """Get a single deployment in this context. Null if missing or cluster unreachable."""
+  deployment(namespace: String!, name: String!): Deployment
+
+  """
+  List pods. Namespace is optional (all namespaces when omitted).
+  Unreachable clusters return [] (same best-effort behavior as namespaces).
+  """
+  pods(namespace: String, filter: PodFilter): [Pod!]!
+
+  """Get a single pod in this context. Null if missing or cluster unreachable."""
+  pod(namespace: String!, name: String!): Pod
+}
+
+type Query {
+  """
+  List kubeconfig contexts. Nest cluster resources under a context, e.g.
+  contexts { name namespaces { name } }.
+  """
+  contexts: [KubeContext!]!
+}

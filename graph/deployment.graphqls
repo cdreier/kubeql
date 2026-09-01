@@ -1,0 +1,52 @@
+"""
+Filter deployments by name/labels and optionally by owned pods.
+"""
+input DeploymentFilter {
+  """Case-insensitive substring match on deployment name."""
+  nameContains: String
+
+  """Kubernetes label selector (e.g. "app=api,tier=frontend")."""
+  labelSelector: String
+
+  """Keep deployments that have at least one pod matching this filter."""
+  hasPod: PodFilter
+}
+
+type Deployment {
+  """Kubeconfig context this resource was loaded from."""
+  context: String!
+  name: String!
+  namespace: String!
+  replicas: Int!
+  readyReplicas: Int!
+  availableReplicas: Int!
+  """Human-readable summary, e.g. "3/3" or condition reason."""
+  status: String!
+  labels: [Label!]!
+  """Full object as YAML."""
+  yaml: String!
+  """Pods owned by this deployment (via label selector)."""
+  pods(filter: PodFilter): [Pod!]!
+  """Sum of container restart counts across owned pods."""
+  restarts: Int!
+  """ConfigMaps referenced by the pod template (env, envFrom, volumes)."""
+  configMaps: [ConfigMap!]!
+  """Secrets referenced by the pod template (env, envFrom, volumes, imagePull)."""
+  secrets: [Secret!]!
+}
+
+extend type Query {
+  """List deployments. Namespace is optional (all namespaces when omitted)."""
+  deployments(context: String!, namespace: String, filter: DeploymentFilter): [Deployment!]!
+
+  """Get a single deployment."""
+  deployment(context: String!, namespace: String!, name: String!): Deployment
+}
+
+type Subscription {
+  """
+  Push updates when deployment status or owned-pod metrics change.
+  MVP: poll about every 2s (informers later).
+  """
+  deploymentStatus(context: String!, namespace: String!, name: String!): Deployment!
+}

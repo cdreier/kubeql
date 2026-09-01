@@ -1,0 +1,22 @@
+type ConfigMap {
+  """Kubeconfig context this resource was loaded from."""
+  context: String!
+  name: String!
+  namespace: String!
+  """How a parent deployment references this object (env, envFrom, volume, …)."""
+  refs: [String!]!
+  """True when the object was referenced but not found in the cluster."""
+  missing: Boolean!
+  keys: [String!]!
+  data: [KeyValue!]!
+  """Full object as YAML."""
+  yaml: String!
+}
+
+extend type Query {
+  """List ConfigMaps in a namespace."""
+  configMaps(context: String!, namespace: String!): [ConfigMap!]!
+
+  """Get a single ConfigMap. Null if missing."""
+  configMap(context: String!, namespace: String!, name: String!): ConfigMap
+}

@@ -1,0 +1,14 @@
+"""Kubernetes GraphQL viewer — read-only API."""
+
+scalar Time
+
+type Label {
+  key: String!
+  value: String!
+}
+
+"""A string map entry (ConfigMap/Secret data, etc.)."""
+type KeyValue {
+  key: String!
+  value: String!
+}
