@@ -8,5 +8,6 @@
 
 # Frontend
 web/node_modules/
-web/dist/assets/
+web/dist/*
+!web/dist/.gitkeep
 web/schema.graphql
