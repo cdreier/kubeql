@@ -16,10 +16,14 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// Set by GoReleaser/Makefile: -ldflags "-X main.version=...".
+var version = "dev"
+
 func main() {
 	app := &cli.App{
-		Name:  "kubeql",
-		Usage: "Read-only GraphQL API over your local kubeconfig",
+		Name:    "kubeql",
+		Usage:   "Read-only GraphQL API over your local kubeconfig",
+		Version: version,
 		Commands: []*cli.Command{
 			serveCommand(),
 		},

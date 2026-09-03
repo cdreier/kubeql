@@ -1,4 +1,7 @@
-.PHONY: generate generate-web build build-web install run run-app run-web test tidy
+.PHONY: generate generate-web build build-web install run run-app run-web test tidy snapshot
+
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS := -s -w -X main.version=$(VERSION)
 
 generate: generate-web
 	go run github.com/99designs/gqlgen generate
@@ -19,11 +22,11 @@ build-web:
 	cd web && npm run build
 
 build: build-web
-	go build -o bin/kubeql ./cmd/kubeql
+	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o bin/kubeql ./cmd/kubeql
 
 # Vite SPA + go install (GOBIN, else GOPATH/bin).
 install: build-web
-	go install ./cmd/kubeql
+	CGO_ENABLED=0 go install -ldflags "$(LDFLAGS)" ./cmd/kubeql
 
 run:
 	go run ./cmd/kubeql serve
@@ -44,3 +47,7 @@ test:
 
 tidy:
 	go mod tidy
+
+# Local GoReleaser snapshot (no GitHub publish). Needs goreleaser on PATH.
+snapshot:
+	goreleaser release --snapshot --clean

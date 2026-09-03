@@ -2,6 +2,26 @@
 
 Read-only GraphQL API over your local kubeconfig.
 
+## Install
+
+Binaries with the embedded UI are published on [GitHub Releases](https://github.com/cdreier/kubeql/releases) for linux, macOS, and Windows (`amd64` + `arm64`).
+
+```bash
+# linux amd64 — other assets: darwin/windows × amd64/arm64
+curl -fsSL -o kubeql.tar.gz \
+  https://github.com/cdreier/kubeql/releases/latest/download/kubeql_linux_amd64.tar.gz
+tar -xzf kubeql.tar.gz
+sudo install -m 0755 kubeql /usr/local/bin/kubeql
+kubeql serve
+```
+
+Or build from source (`make install` builds the Vite SPA before `go install`):
+
+```bash
+make install
+kubeql serve
+```
+
 ## Quick start
 
 ```bash
@@ -124,6 +144,23 @@ make test
 ```
 
 Unit tests use an in-memory fake cluster — no kubeconfig required.
+
+## Releases
+
+Push a semver tag to trigger GitHub Actions (Vite build, embed into Go, publish archives):
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Prerelease tags like `v0.1.0-rc.1` are marked as prereleases automatically.
+
+Local dry-run (needs [GoReleaser](https://goreleaser.com/) on PATH):
+
+```bash
+make snapshot
+```
 
 ## Notes
 
