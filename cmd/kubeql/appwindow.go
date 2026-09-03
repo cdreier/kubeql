@@ -41,16 +41,41 @@ func findChrome() (string, error) {
 	return "", fmt.Errorf("no Chrome/Chromium on PATH (install one or set CHROME_PATH)")
 }
 
-func chromeProfileDir() (string, error) {
-	base, err := os.UserCacheDir()
-	if err != nil || base == "" {
-		base = os.TempDir()
+func chromeProfileDir(bin string) (string, error) {
+	base, err := chromeProfileBaseDir(bin)
+	if err != nil {
+		return "", err
 	}
 	dir := filepath.Join(base, "kubeql", "chrome")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("chrome profile: %w", err)
 	}
 	return dir, nil
+}
+
+func chromeProfileBaseDir(bin string) (string, error) {
+	// Strictly confined snaps cannot write to the real user's hidden ~/.cache
+	// directory. Keep their profile in the snap's revision-independent user data
+	// directory instead so localStorage survives snap refreshes.
+	if runtime.GOOS == "linux" {
+		cleanBin := filepath.Clean(bin)
+		if filepath.Dir(cleanBin) == "/snap/bin" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "", fmt.Errorf("snap chrome profile: user home directory unavailable: %w", err)
+			}
+			if home == "" {
+				return "", fmt.Errorf("snap chrome profile: user home directory unavailable")
+			}
+			return filepath.Join(home, "snap", filepath.Base(cleanBin), "common"), nil
+		}
+	}
+
+	base, err := os.UserCacheDir()
+	if err != nil || base == "" {
+		base = os.TempDir()
+	}
+	return base, nil
 }
 
 // startAppWindow launches Chrome in --app mode with a persistent user-data-dir
@@ -61,7 +86,7 @@ func startAppWindow(url string) (*exec.Cmd, error) {
 	if err != nil {
 		return nil, err
 	}
-	profile, err := chromeProfileDir()
+	profile, err := chromeProfileDir(bin)
 	if err != nil {
 		return nil, err
 	}
