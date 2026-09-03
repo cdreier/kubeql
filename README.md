@@ -168,3 +168,7 @@ make snapshot
 - **Multi-context**: nest under `contexts { ... }` or pass `context:` on root fields/subscriptions.
 - **Metrics**: `cpuUsage` / `memoryUsage` come from metrics-server (null if missing). `cpuLimit` / `memoryLimit` are the summed container limits from the pod spec.
 - **Status subscriptions** (`deploymentStatus`, `podStatus`) poll every 2s and include resource usage; can be swapped for informers later.
+
+## License
+
+[MIT](LICENSE)
