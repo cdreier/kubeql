@@ -44,6 +44,15 @@ cd web && npm run dev   # Vite :5173, proxies /query → :8080
 kubeql serve --app
 ```
 
+On Linux, `--app` detects browsers launched directly from `/snap/bin` and keeps
+their dedicated kubeql profile under the browser's writable Snap data directory.
+If an indirect Snap wrapper is not detected and Chromium reports that it cannot
+create `SingletonLock` under `~/.cache/kubeql/chrome`, use:
+
+```bash
+XDG_CACHE_HOME="$HOME/snap/chromium/common" kubeql serve --app
+```
+
 | URL | What |
 |-----|------|
 | http://localhost:8080/ | Embedded React UI |
