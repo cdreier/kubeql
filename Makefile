@@ -39,11 +39,8 @@ run-app:
 run-web:
 	cd web && npm run dev
 
-# Exclude web/node_modules (some npm packages ship Go sources).
-GO_PACKAGES := ./cmd/... ./graph/... ./internal/... ./web
-
 test:
-	go test $(GO_PACKAGES)
+	go test -v ./...
 
 tidy:
 	go mod tidy
