@@ -63,3 +63,22 @@ export function kubectlExec(
   args.push("--", "/bin/sh");
   return kubectl(args);
 }
+
+/** Force-delete a pod (k9s-style kill): no graceful drain. */
+export function kubectlKillPod(
+  context: string,
+  namespace: string,
+  pod: string
+): string {
+  return kubectl([
+    "delete",
+    "pod",
+    pod,
+    "-n",
+    namespace,
+    "--context",
+    context,
+    "--force",
+    "--grace-period=0",
+  ]);
+}

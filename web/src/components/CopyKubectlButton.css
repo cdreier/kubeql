@@ -18,3 +18,12 @@
   font-size: 0.72rem;
   border-radius: 4px;
 }
+
+.copy-kubectl.danger {
+  color: #f28b82;
+  border-color: #5c3a3a;
+}
+
+.copy-kubectl.danger:hover {
+  background: #2a1c1c;
+}

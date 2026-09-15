@@ -47,6 +47,13 @@
   background: #f28b82;
 }
 
+.pod-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .pod-log-btn {
   margin: 0;
   padding: 0;

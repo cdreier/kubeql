@@ -5,12 +5,14 @@ type CopyKubectlButtonProps = {
   label: string;
   command: string;
   compact?: boolean;
+  tone?: "default" | "danger";
 };
 
 export function CopyKubectlButton({
   label,
   command,
   compact = false,
+  tone = "default",
 }: CopyKubectlButtonProps) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | null>(null);
@@ -30,7 +32,13 @@ export function CopyKubectlButton({
   return (
     <button
       type="button"
-      className={compact ? "copy-kubectl compact" : "copy-kubectl"}
+      className={[
+        "copy-kubectl",
+        compact ? "compact" : "",
+        tone === "danger" ? "danger" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       onClick={() => void copy()}
       title={command}
     >

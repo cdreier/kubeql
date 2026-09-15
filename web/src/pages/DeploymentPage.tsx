@@ -12,6 +12,7 @@ import { useFavoriteDeployments } from "../hooks/useFavoriteDeployments";
 import { useQuery, useSubscription } from "../gqty";
 import {
   kubectlExec,
+  kubectlKillPod,
   kubectlRestartDeployment,
 } from "../lib/kubectl";
 import { podColor } from "../lib/podColor";
@@ -330,19 +331,31 @@ export function DeploymentPage() {
                 {pods.map((p) => (
                   <tr key={p.name}>
                     <td className="dep-name">
-                      <button
-                        type="button"
-                        className={
-                          logFocus && activeLogPods.includes(p.name)
-                            ? "pod-log-btn on"
-                            : "pod-log-btn"
-                        }
-                        onClick={() => toggleLogPod(p.name)}
-                        title="Toggle pod in log stream"
-                        style={{ color: podColor(p.name) }}
-                      >
-                        {p.name}
-                      </button>
+                      <div className="pod-name-row">
+                        <button
+                          type="button"
+                          className={
+                            logFocus && activeLogPods.includes(p.name)
+                              ? "pod-log-btn on"
+                              : "pod-log-btn"
+                          }
+                          onClick={() => toggleLogPod(p.name)}
+                          title="Toggle pod in log stream"
+                          style={{ color: podColor(p.name) }}
+                        >
+                          {p.name}
+                        </button>
+                        <CopyKubectlButton
+                          compact
+                          tone="danger"
+                          label="kill"
+                          command={kubectlKillPod(
+                            contextName,
+                            nsName,
+                            p.name
+                          )}
+                        />
+                      </div>
                     </td>
                     <td>
                       <span className={`ready-pill ${phaseClass(p.phase)}`}>
