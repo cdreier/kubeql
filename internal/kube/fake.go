@@ -11,12 +11,14 @@ import (
 
 // Fake is an in-memory ClusterReader for unit tests.
 type Fake struct {
-	mu          sync.RWMutex
-	Namespaces  []Namespace
-	Deployments []Deployment
-	Pods        []Pod
-	ConfigMaps  []ConfigMap
-	Secrets     []Secret
+	mu              sync.RWMutex
+	Namespaces      []Namespace
+	Deployments     []Deployment
+	Pods            []Pod
+	ConfigMaps      []ConfigMap
+	Secrets         []Secret
+	APIResources    []APIResource
+	CustomResources []CustomResource
 	// YAML keyed by "kind/namespace/name"
 	YAML map[string]string
 	// Logs keyed by "namespace/pod[/container]"
@@ -194,6 +196,65 @@ func (f *Fake) PodYAML(ctx context.Context, namespace, name string) (string, err
 		return y, nil
 	}
 	return fmt.Sprintf("apiVersion: v1\nkind: Pod\nmetadata:\n  name: %s\n  namespace: %s\n", name, namespace), nil
+}
+
+func (f *Fake) ListAPIResources(ctx context.Context) ([]APIResource, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	out := make([]APIResource, len(f.APIResources))
+	copy(out, f.APIResources)
+	return out, nil
+}
+
+func (f *Fake) ListCustomResources(ctx context.Context, group, version, resource, namespace string) ([]CustomResource, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	var out []CustomResource
+	for _, cr := range f.CustomResources {
+		if cr.Group != group || cr.Version != version || cr.Resource != resource {
+			continue
+		}
+		if namespace != "" && cr.Namespace != namespace {
+			continue
+		}
+		out = append(out, cr)
+	}
+	return out, nil
+}
+
+func (f *Fake) GetCustomResource(ctx context.Context, group, version, resource, namespace, name string) (*CustomResource, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	for _, cr := range f.CustomResources {
+		if cr.Group == group && cr.Version == version && cr.Resource == resource &&
+			cr.Namespace == namespace && cr.Name == name {
+			cp := cr
+			return &cp, nil
+		}
+	}
+	return nil, nil
+}
+
+func (f *Fake) CustomResourceYAML(ctx context.Context, group, version, resource, namespace, name string) (string, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	key := "crd/" + group + "/" + version + "/" + resource + "/" + namespace + "/" + name
+	if y, ok := f.YAML[key]; ok {
+		return y, nil
+	}
+	kind := resource
+	for _, cr := range f.CustomResources {
+		if cr.Group == group && cr.Version == version && cr.Resource == resource &&
+			cr.Namespace == namespace && cr.Name == name {
+			kind = cr.Kind
+			break
+		}
+	}
+	apiVersion := version
+	if group != "" {
+		apiVersion = group + "/" + version
+	}
+	return fmt.Sprintf("apiVersion: %s\nkind: %s\nmetadata:\n  name: %s\n  namespace: %s\n", apiVersion, kind, name, namespace), nil
 }
 
 func (f *Fake) StreamPodLogs(ctx context.Context, opts LogOptions) (io.ReadCloser, error) {

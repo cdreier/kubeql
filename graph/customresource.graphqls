@@ -1,0 +1,82 @@
+"""
+A discovered API resource that is not a built-in Kubernetes kind (typically a CRD).
+"""
+type ApiResource {
+  group: String!
+  version: String!
+  kind: String!
+  """Plural resource name, e.g. kustomizations."""
+  resource: String!
+  namespaced: Boolean!
+}
+
+"""
+A generic custom resource instance (Flux Kustomization, cert-manager Certificate, …).
+"""
+type CustomResource {
+  """Kubeconfig context this resource was loaded from."""
+  context: String!
+  apiVersion: String!
+  kind: String!
+  group: String!
+  version: String!
+  resource: String!
+  name: String!
+  """Null when the resource is cluster-scoped."""
+  namespace: String
+  labels: [Label!]!
+  """status.conditions type=Ready (or Healthy/Available). Null when unknown."""
+  ready: Boolean
+  reason: String
+  message: String
+  createdAt: Time
+  """Full object as YAML."""
+  yaml: String!
+}
+
+input CustomResourceFilter {
+  """Case-insensitive substring match on resource name."""
+  nameContains: String
+  """Case-insensitive substring on kind, resource, or API group (e.g. flux)."""
+  kindContains: String
+  group: String
+  version: String
+  kind: String
+  resource: String
+}
+
+extend type Namespace {
+  """Namespaced custom resources in this namespace (CRDs / extension APIs)."""
+  customResources(filter: CustomResourceFilter): [CustomResource!]!
+  """Discovered namespaced extension API resources (CRDs)."""
+  apiResources: [ApiResource!]!
+}
+
+extend type KubeContext {
+  """Discovered extension API resources (CRDs)."""
+  apiResources: [ApiResource!]!
+  """Custom resources. Namespace is optional (all namespaces when omitted)."""
+  customResources(namespace: String, filter: CustomResourceFilter): [CustomResource!]!
+}
+
+extend type Query {
+  """List discovered extension API resources (CRDs) in a kubeconfig context."""
+  apiResources(context: String!): [ApiResource!]!
+
+  """List custom resource instances. Namespace is optional."""
+  customResources(
+    context: String!
+    namespace: String
+    filter: CustomResourceFilter
+  ): [CustomResource!]!
+
+  """Get a single custom resource. Null if missing."""
+  customResource(
+    context: String!
+    group: String!
+    version: String!
+    resource: String!
+    namespace: String
+    name: String!
+  ): CustomResource
+}

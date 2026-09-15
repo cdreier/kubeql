@@ -24,6 +24,11 @@ export function phaseClass(phase: string | null | undefined): string {
   }
 }
 
+export function crReadyClass(ready: boolean | null | undefined): string {
+  if (ready == null) return "ready-unknown";
+  return ready ? "ready-ok" : "ready-bad";
+}
+
 export function containerStateClass(state: string | null | undefined): string {
   switch (state) {
     case "Running":

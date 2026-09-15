@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "../gqty";
+import { CustomResourceList } from "../components/CustomResourceList";
 import { FavoriteStar } from "../components/FavoriteStar";
 import { ResourceCell } from "../components/ResourceCell";
 import { useFavoriteDeployments } from "../hooks/useFavoriteDeployments";
@@ -22,6 +23,7 @@ export function ContextPage() {
   }>();
   const contextName = rawCtx ? decodeURIComponent(rawCtx) : "";
   const nsName = rawNs ? decodeURIComponent(rawNs) : "";
+  const [crOpen, setCrOpen] = useState(false);
 
   const q = useQuery({
     // Stable arg: remount page when context/ns changes (router key on parent).
@@ -282,6 +284,18 @@ export function ContextPage() {
           </p>
         )}
       </div>
+
+      <details
+        className="cr-fold"
+        onToggle={(e) => setCrOpen(e.currentTarget.open)}
+      >
+        <summary>Custom resources</summary>
+        {crOpen ? (
+          <CustomResourceList context={contextName} namespace={nsName} />
+        ) : (
+          <p className="muted">Open to load CRDs in this namespace (Flux, cert-manager, …).</p>
+        )}
+      </details>
     </div>
   );
 }

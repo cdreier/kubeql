@@ -14,6 +14,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	metricsclient "k8s.io/metrics/pkg/client/clientset/versioned"
 	"sigs.k8s.io/yaml"
@@ -22,6 +23,7 @@ import (
 // Client is a ClusterReader backed by client-go for a single kubeconfig context.
 type Client struct {
 	cs      kubernetes.Interface
+	dyn     dynamic.Interface       // optional; nil when the rest config cannot build a dynamic client
 	metrics metricsclient.Interface // optional; nil when metrics-server is unused/unavailable
 	context string
 }

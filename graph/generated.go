@@ -42,6 +42,7 @@ type Config struct {
 
 type ResolverRoot interface {
 	ConfigMap() ConfigMapResolver
+	CustomResource() CustomResourceResolver
 	Deployment() DeploymentResolver
 	KubeContext() KubeContextResolver
 	Namespace() NamespaceResolver
@@ -55,6 +56,14 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	ApiResource struct {
+		Group      func(childComplexity int) int
+		Kind       func(childComplexity int) int
+		Namespaced func(childComplexity int) int
+		Resource   func(childComplexity int) int
+		Version    func(childComplexity int) int
+	}
+
 	ConfigMap struct {
 		Context   func(childComplexity int) int
 		Data      func(childComplexity int) int
@@ -72,6 +81,23 @@ type ComplexityRoot struct {
 		Ready        func(childComplexity int) int
 		RestartCount func(childComplexity int) int
 		State        func(childComplexity int) int
+	}
+
+	CustomResource struct {
+		APIVersion func(childComplexity int) int
+		Context    func(childComplexity int) int
+		CreatedAt  func(childComplexity int) int
+		Group      func(childComplexity int) int
+		Kind       func(childComplexity int) int
+		Labels     func(childComplexity int) int
+		Message    func(childComplexity int) int
+		Name       func(childComplexity int) int
+		Namespace  func(childComplexity int) int
+		Ready      func(childComplexity int) int
+		Reason     func(childComplexity int) int
+		Resource   func(childComplexity int) int
+		Version    func(childComplexity int) int
+		Yaml       func(childComplexity int) int
 	}
 
 	Deployment struct {
@@ -96,8 +122,10 @@ type ComplexityRoot struct {
 	}
 
 	KubeContext struct {
+		APIResources     func(childComplexity int) int
 		Cluster          func(childComplexity int) int
 		Current          func(childComplexity int) int
+		CustomResources  func(childComplexity int, namespace *string, filter *model.CustomResourceFilter) int
 		DefaultNamespace func(childComplexity int) int
 		Deployment       func(childComplexity int, namespace string, name string) int
 		Deployments      func(childComplexity int, namespace *string, filter *model.DeploymentFilter) int
@@ -121,10 +149,12 @@ type ComplexityRoot struct {
 	}
 
 	Namespace struct {
-		Context     func(childComplexity int) int
-		Deployments func(childComplexity int, filter *model.DeploymentFilter) int
-		Name        func(childComplexity int) int
-		Pods        func(childComplexity int, filter *model.PodFilter) int
+		APIResources    func(childComplexity int) int
+		Context         func(childComplexity int) int
+		CustomResources func(childComplexity int, filter *model.CustomResourceFilter) int
+		Deployments     func(childComplexity int, filter *model.DeploymentFilter) int
+		Name            func(childComplexity int) int
+		Pods            func(childComplexity int, filter *model.PodFilter) int
 	}
 
 	Pod struct {
@@ -132,9 +162,9 @@ type ComplexityRoot struct {
 		CPUUsage      func(childComplexity int) int
 		Containers    func(childComplexity int) int
 		Context       func(childComplexity int) int
+		CreatedAt     func(childComplexity int) int
 		Labels        func(childComplexity int) int
 		LastRestartAt func(childComplexity int) int
-		CreatedAt     func(childComplexity int) int
 		MemoryLimit   func(childComplexity int) int
 		MemoryUsage   func(childComplexity int) int
 		Name          func(childComplexity int) int
@@ -147,17 +177,20 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		ConfigMap   func(childComplexity int, context string, namespace string, name string) int
-		ConfigMaps  func(childComplexity int, context string, namespace string) int
-		Contexts    func(childComplexity int) int
-		Deployment  func(childComplexity int, context string, namespace string, name string) int
-		Deployments func(childComplexity int, context string, namespace *string, filter *model.DeploymentFilter) int
-		Namespace   func(childComplexity int, context string, name string) int
-		Namespaces  func(childComplexity int, context string, filter *model.NamespaceFilter) int
-		Pod         func(childComplexity int, context string, namespace string, name string) int
-		Pods        func(childComplexity int, context string, namespace *string, filter *model.PodFilter) int
-		Secret      func(childComplexity int, context string, namespace string, name string) int
-		Secrets     func(childComplexity int, context string, namespace string) int
+		APIResources    func(childComplexity int, context string) int
+		ConfigMap       func(childComplexity int, context string, namespace string, name string) int
+		ConfigMaps      func(childComplexity int, context string, namespace string) int
+		Contexts        func(childComplexity int) int
+		CustomResource  func(childComplexity int, context string, group string, version string, resource string, namespace *string, name string) int
+		CustomResources func(childComplexity int, context string, namespace *string, filter *model.CustomResourceFilter) int
+		Deployment      func(childComplexity int, context string, namespace string, name string) int
+		Deployments     func(childComplexity int, context string, namespace *string, filter *model.DeploymentFilter) int
+		Namespace       func(childComplexity int, context string, name string) int
+		Namespaces      func(childComplexity int, context string, filter *model.NamespaceFilter) int
+		Pod             func(childComplexity int, context string, namespace string, name string) int
+		Pods            func(childComplexity int, context string, namespace *string, filter *model.PodFilter) int
+		Secret          func(childComplexity int, context string, namespace string, name string) int
+		Secrets         func(childComplexity int, context string, namespace string) int
 	}
 
 	Secret struct {
@@ -182,6 +215,9 @@ type ComplexityRoot struct {
 type ConfigMapResolver interface {
 	Yaml(ctx context.Context, obj *model.ConfigMap) (string, error)
 }
+type CustomResourceResolver interface {
+	Yaml(ctx context.Context, obj *model.CustomResource) (string, error)
+}
 type DeploymentResolver interface {
 	Yaml(ctx context.Context, obj *model.Deployment) (string, error)
 	Pods(ctx context.Context, obj *model.Deployment, filter *model.PodFilter) ([]*model.Pod, error)
@@ -196,10 +232,14 @@ type KubeContextResolver interface {
 	Deployment(ctx context.Context, obj *model.KubeContext, namespace string, name string) (*model.Deployment, error)
 	Pods(ctx context.Context, obj *model.KubeContext, namespace *string, filter *model.PodFilter) ([]*model.Pod, error)
 	Pod(ctx context.Context, obj *model.KubeContext, namespace string, name string) (*model.Pod, error)
+	APIResources(ctx context.Context, obj *model.KubeContext) ([]*model.APIResource, error)
+	CustomResources(ctx context.Context, obj *model.KubeContext, namespace *string, filter *model.CustomResourceFilter) ([]*model.CustomResource, error)
 }
 type NamespaceResolver interface {
 	Deployments(ctx context.Context, obj *model.Namespace, filter *model.DeploymentFilter) ([]*model.Deployment, error)
 	Pods(ctx context.Context, obj *model.Namespace, filter *model.PodFilter) ([]*model.Pod, error)
+	CustomResources(ctx context.Context, obj *model.Namespace, filter *model.CustomResourceFilter) ([]*model.CustomResource, error)
+	APIResources(ctx context.Context, obj *model.Namespace) ([]*model.APIResource, error)
 }
 type PodResolver interface {
 	Yaml(ctx context.Context, obj *model.Pod) (string, error)
@@ -208,6 +248,9 @@ type QueryResolver interface {
 	Contexts(ctx context.Context) ([]*model.KubeContext, error)
 	ConfigMaps(ctx context.Context, context string, namespace string) ([]*model.ConfigMap, error)
 	ConfigMap(ctx context.Context, context string, namespace string, name string) (*model.ConfigMap, error)
+	APIResources(ctx context.Context, context string) ([]*model.APIResource, error)
+	CustomResources(ctx context.Context, context string, namespace *string, filter *model.CustomResourceFilter) ([]*model.CustomResource, error)
+	CustomResource(ctx context.Context, context string, group string, version string, resource string, namespace *string, name string) (*model.CustomResource, error)
 	Deployments(ctx context.Context, context string, namespace *string, filter *model.DeploymentFilter) ([]*model.Deployment, error)
 	Deployment(ctx context.Context, context string, namespace string, name string) (*model.Deployment, error)
 	Namespaces(ctx context.Context, context string, filter *model.NamespaceFilter) ([]*model.Namespace, error)
@@ -244,6 +287,41 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := executionContext{nil, e, 0, 0, nil}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "ApiResource.group":
+		if e.complexity.ApiResource.Group == nil {
+			break
+		}
+
+		return e.complexity.ApiResource.Group(childComplexity), true
+
+	case "ApiResource.kind":
+		if e.complexity.ApiResource.Kind == nil {
+			break
+		}
+
+		return e.complexity.ApiResource.Kind(childComplexity), true
+
+	case "ApiResource.namespaced":
+		if e.complexity.ApiResource.Namespaced == nil {
+			break
+		}
+
+		return e.complexity.ApiResource.Namespaced(childComplexity), true
+
+	case "ApiResource.resource":
+		if e.complexity.ApiResource.Resource == nil {
+			break
+		}
+
+		return e.complexity.ApiResource.Resource(childComplexity), true
+
+	case "ApiResource.version":
+		if e.complexity.ApiResource.Version == nil {
+			break
+		}
+
+		return e.complexity.ApiResource.Version(childComplexity), true
 
 	case "ConfigMap.context":
 		if e.complexity.ConfigMap.Context == nil {
@@ -335,6 +413,104 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Container.State(childComplexity), true
+
+	case "CustomResource.apiVersion":
+		if e.complexity.CustomResource.APIVersion == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.APIVersion(childComplexity), true
+
+	case "CustomResource.context":
+		if e.complexity.CustomResource.Context == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Context(childComplexity), true
+
+	case "CustomResource.createdAt":
+		if e.complexity.CustomResource.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.CreatedAt(childComplexity), true
+
+	case "CustomResource.group":
+		if e.complexity.CustomResource.Group == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Group(childComplexity), true
+
+	case "CustomResource.kind":
+		if e.complexity.CustomResource.Kind == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Kind(childComplexity), true
+
+	case "CustomResource.labels":
+		if e.complexity.CustomResource.Labels == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Labels(childComplexity), true
+
+	case "CustomResource.message":
+		if e.complexity.CustomResource.Message == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Message(childComplexity), true
+
+	case "CustomResource.name":
+		if e.complexity.CustomResource.Name == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Name(childComplexity), true
+
+	case "CustomResource.namespace":
+		if e.complexity.CustomResource.Namespace == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Namespace(childComplexity), true
+
+	case "CustomResource.ready":
+		if e.complexity.CustomResource.Ready == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Ready(childComplexity), true
+
+	case "CustomResource.reason":
+		if e.complexity.CustomResource.Reason == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Reason(childComplexity), true
+
+	case "CustomResource.resource":
+		if e.complexity.CustomResource.Resource == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Resource(childComplexity), true
+
+	case "CustomResource.version":
+		if e.complexity.CustomResource.Version == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Version(childComplexity), true
+
+	case "CustomResource.yaml":
+		if e.complexity.CustomResource.Yaml == nil {
+			break
+		}
+
+		return e.complexity.CustomResource.Yaml(childComplexity), true
 
 	case "Deployment.availableReplicas":
 		if e.complexity.Deployment.AvailableReplicas == nil {
@@ -446,6 +622,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.KeyValue.Value(childComplexity), true
 
+	case "KubeContext.apiResources":
+		if e.complexity.KubeContext.APIResources == nil {
+			break
+		}
+
+		return e.complexity.KubeContext.APIResources(childComplexity), true
+
 	case "KubeContext.cluster":
 		if e.complexity.KubeContext.Cluster == nil {
 			break
@@ -459,6 +642,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.KubeContext.Current(childComplexity), true
+
+	case "KubeContext.customResources":
+		if e.complexity.KubeContext.CustomResources == nil {
+			break
+		}
+
+		args, err := ec.field_KubeContext_customResources_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.KubeContext.CustomResources(childComplexity, args["namespace"].(*string), args["filter"].(*model.CustomResourceFilter)), true
 
 	case "KubeContext.defaultNamespace":
 		if e.complexity.KubeContext.DefaultNamespace == nil {
@@ -588,12 +783,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.LogLine.Timestamp(childComplexity), true
 
+	case "Namespace.apiResources":
+		if e.complexity.Namespace.APIResources == nil {
+			break
+		}
+
+		return e.complexity.Namespace.APIResources(childComplexity), true
+
 	case "Namespace.context":
 		if e.complexity.Namespace.Context == nil {
 			break
 		}
 
 		return e.complexity.Namespace.Context(childComplexity), true
+
+	case "Namespace.customResources":
+		if e.complexity.Namespace.CustomResources == nil {
+			break
+		}
+
+		args, err := ec.field_Namespace_customResources_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Namespace.CustomResources(childComplexity, args["filter"].(*model.CustomResourceFilter)), true
 
 	case "Namespace.deployments":
 		if e.complexity.Namespace.Deployments == nil {
@@ -654,6 +868,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Pod.Context(childComplexity), true
 
+	case "Pod.createdAt":
+		if e.complexity.Pod.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.Pod.CreatedAt(childComplexity), true
+
 	case "Pod.labels":
 		if e.complexity.Pod.Labels == nil {
 			break
@@ -667,13 +888,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Pod.LastRestartAt(childComplexity), true
-
-	case "Pod.createdAt":
-		if e.complexity.Pod.CreatedAt == nil {
-			break
-		}
-
-		return e.complexity.Pod.CreatedAt(childComplexity), true
 
 	case "Pod.memoryLimit":
 		if e.complexity.Pod.MemoryLimit == nil {
@@ -738,6 +952,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Pod.Yaml(childComplexity), true
 
+	case "Query.apiResources":
+		if e.complexity.Query.APIResources == nil {
+			break
+		}
+
+		args, err := ec.field_Query_apiResources_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.APIResources(childComplexity, args["context"].(string)), true
+
 	case "Query.configMap":
 		if e.complexity.Query.ConfigMap == nil {
 			break
@@ -768,6 +994,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Contexts(childComplexity), true
+
+	case "Query.customResource":
+		if e.complexity.Query.CustomResource == nil {
+			break
+		}
+
+		args, err := ec.field_Query_customResource_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.CustomResource(childComplexity, args["context"].(string), args["group"].(string), args["version"].(string), args["resource"].(string), args["namespace"].(*string), args["name"].(string)), true
+
+	case "Query.customResources":
+		if e.complexity.Query.CustomResources == nil {
+			break
+		}
+
+		args, err := ec.field_Query_customResources_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.CustomResources(childComplexity, args["context"].(string), args["namespace"].(*string), args["filter"].(*model.CustomResourceFilter)), true
 
 	case "Query.deployment":
 		if e.complexity.Query.Deployment == nil {
@@ -972,6 +1222,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputCustomResourceFilter,
 		ec.unmarshalInputDeploymentFilter,
 		ec.unmarshalInputNamespaceFilter,
 		ec.unmarshalInputPodFilter,
@@ -1073,7 +1324,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "common.graphqls" "configmap.graphqls" "context.graphqls" "deployment.graphqls" "namespace.graphqls" "pod.graphqls" "secret.graphqls"
+//go:embed "common.graphqls" "configmap.graphqls" "context.graphqls" "customresource.graphqls" "deployment.graphqls" "namespace.graphqls" "pod.graphqls" "secret.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -1088,6 +1339,7 @@ var sources = []*ast.Source{
 	{Name: "common.graphqls", Input: sourceData("common.graphqls"), BuiltIn: false},
 	{Name: "configmap.graphqls", Input: sourceData("configmap.graphqls"), BuiltIn: false},
 	{Name: "context.graphqls", Input: sourceData("context.graphqls"), BuiltIn: false},
+	{Name: "customresource.graphqls", Input: sourceData("customresource.graphqls"), BuiltIn: false},
 	{Name: "deployment.graphqls", Input: sourceData("deployment.graphqls"), BuiltIn: false},
 	{Name: "namespace.graphqls", Input: sourceData("namespace.graphqls"), BuiltIn: false},
 	{Name: "pod.graphqls", Input: sourceData("pod.graphqls"), BuiltIn: false},
@@ -1107,6 +1359,22 @@ func (ec *executionContext) field_Deployment_pods_args(ctx context.Context, rawA
 		return nil, err
 	}
 	args["filter"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_KubeContext_customResources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "namespace", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["namespace"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalOCustomResourceFilter2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResourceFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg1
 	return args, nil
 }
 
@@ -1196,6 +1464,17 @@ func (ec *executionContext) field_KubeContext_pods_args(ctx context.Context, raw
 	return args, nil
 }
 
+func (ec *executionContext) field_Namespace_customResources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalOCustomResourceFilter2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResourceFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Namespace_deployments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1226,6 +1505,17 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_apiResources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["context"] = arg0
 	return args, nil
 }
 
@@ -1263,6 +1553,63 @@ func (ec *executionContext) field_Query_configMaps_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["namespace"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_customResource_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["context"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "group", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["group"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "version", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["version"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "resource", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["resource"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "namespace", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["namespace"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg5
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_customResources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["context"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "namespace", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["namespace"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalOCustomResourceFilter2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResourceFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg2
 	return args, nil
 }
 
@@ -1543,6 +1890,226 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _ApiResource_group(ctx context.Context, field graphql.CollectedField, obj *model.APIResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ApiResource_group(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Group, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ApiResource_group(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ApiResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ApiResource_version(ctx context.Context, field graphql.CollectedField, obj *model.APIResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ApiResource_version(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Version, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ApiResource_version(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ApiResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ApiResource_kind(ctx context.Context, field graphql.CollectedField, obj *model.APIResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ApiResource_kind(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Kind, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ApiResource_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ApiResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ApiResource_resource(ctx context.Context, field graphql.CollectedField, obj *model.APIResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ApiResource_resource(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Resource, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ApiResource_resource(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ApiResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ApiResource_namespaced(ctx context.Context, field graphql.CollectedField, obj *model.APIResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ApiResource_namespaced(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Namespaced, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ApiResource_namespaced(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ApiResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
 
 func (ec *executionContext) _ConfigMap_context(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMap) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_ConfigMap_context(ctx, field)
@@ -2115,6 +2682,613 @@ func (ec *executionContext) fieldContext_Container_state(_ context.Context, fiel
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_context(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_context(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Context, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_context(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_apiVersion(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_apiVersion(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.APIVersion, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_apiVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_kind(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_kind(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Kind, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_group(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_group(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Group, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_group(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_version(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_version(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Version, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_version(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_resource(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_resource(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Resource, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_resource(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_name(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_namespace(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_namespace(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Namespace, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_namespace(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_labels(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_labels(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Labels, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Label)
+	fc.Result = res
+	return ec.marshalNLabel2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐLabelᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_labels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_Label_key(ctx, field)
+			case "value":
+				return ec.fieldContext_Label_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Label", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_ready(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_ready(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Ready, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_ready(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_reason(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_reason(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Reason, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_message(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CustomResource_yaml(ctx context.Context, field graphql.CollectedField, obj *model.CustomResource) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomResource_yaml(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.CustomResource().Yaml(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CustomResource_yaml(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CustomResource",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
@@ -3135,6 +4309,10 @@ func (ec *executionContext) fieldContext_KubeContext_namespaces(ctx context.Cont
 				return ec.fieldContext_Namespace_deployments(ctx, field)
 			case "pods":
 				return ec.fieldContext_Namespace_pods(ctx, field)
+			case "customResources":
+				return ec.fieldContext_Namespace_customResources(ctx, field)
+			case "apiResources":
+				return ec.fieldContext_Namespace_apiResources(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Namespace", field.Name)
 		},
@@ -3197,6 +4375,10 @@ func (ec *executionContext) fieldContext_KubeContext_namespace(ctx context.Conte
 				return ec.fieldContext_Namespace_deployments(ctx, field)
 			case "pods":
 				return ec.fieldContext_Namespace_pods(ctx, field)
+			case "customResources":
+				return ec.fieldContext_Namespace_customResources(ctx, field)
+			case "apiResources":
+				return ec.fieldContext_Namespace_apiResources(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Namespace", field.Name)
 		},
@@ -3547,6 +4729,147 @@ func (ec *executionContext) fieldContext_KubeContext_pod(ctx context.Context, fi
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_KubeContext_pod_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KubeContext_apiResources(ctx context.Context, field graphql.CollectedField, obj *model.KubeContext) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_KubeContext_apiResources(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.KubeContext().APIResources(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.APIResource)
+	fc.Result = res
+	return ec.marshalNApiResource2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐAPIResourceᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_KubeContext_apiResources(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KubeContext",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "group":
+				return ec.fieldContext_ApiResource_group(ctx, field)
+			case "version":
+				return ec.fieldContext_ApiResource_version(ctx, field)
+			case "kind":
+				return ec.fieldContext_ApiResource_kind(ctx, field)
+			case "resource":
+				return ec.fieldContext_ApiResource_resource(ctx, field)
+			case "namespaced":
+				return ec.fieldContext_ApiResource_namespaced(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ApiResource", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KubeContext_customResources(ctx context.Context, field graphql.CollectedField, obj *model.KubeContext) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_KubeContext_customResources(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.KubeContext().CustomResources(rctx, obj, fc.Args["namespace"].(*string), fc.Args["filter"].(*model.CustomResourceFilter))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.CustomResource)
+	fc.Result = res
+	return ec.marshalNCustomResource2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResourceᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_KubeContext_customResources(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KubeContext",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_CustomResource_context(ctx, field)
+			case "apiVersion":
+				return ec.fieldContext_CustomResource_apiVersion(ctx, field)
+			case "kind":
+				return ec.fieldContext_CustomResource_kind(ctx, field)
+			case "group":
+				return ec.fieldContext_CustomResource_group(ctx, field)
+			case "version":
+				return ec.fieldContext_CustomResource_version(ctx, field)
+			case "resource":
+				return ec.fieldContext_CustomResource_resource(ctx, field)
+			case "name":
+				return ec.fieldContext_CustomResource_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_CustomResource_namespace(ctx, field)
+			case "labels":
+				return ec.fieldContext_CustomResource_labels(ctx, field)
+			case "ready":
+				return ec.fieldContext_CustomResource_ready(ctx, field)
+			case "reason":
+				return ec.fieldContext_CustomResource_reason(ctx, field)
+			case "message":
+				return ec.fieldContext_CustomResource_message(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_CustomResource_createdAt(ctx, field)
+			case "yaml":
+				return ec.fieldContext_CustomResource_yaml(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CustomResource", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_KubeContext_customResources_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4023,6 +5346,147 @@ func (ec *executionContext) fieldContext_Namespace_pods(ctx context.Context, fie
 	if fc.Args, err = ec.field_Namespace_pods_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Namespace_customResources(ctx context.Context, field graphql.CollectedField, obj *model.Namespace) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Namespace_customResources(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Namespace().CustomResources(rctx, obj, fc.Args["filter"].(*model.CustomResourceFilter))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.CustomResource)
+	fc.Result = res
+	return ec.marshalNCustomResource2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResourceᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Namespace_customResources(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Namespace",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_CustomResource_context(ctx, field)
+			case "apiVersion":
+				return ec.fieldContext_CustomResource_apiVersion(ctx, field)
+			case "kind":
+				return ec.fieldContext_CustomResource_kind(ctx, field)
+			case "group":
+				return ec.fieldContext_CustomResource_group(ctx, field)
+			case "version":
+				return ec.fieldContext_CustomResource_version(ctx, field)
+			case "resource":
+				return ec.fieldContext_CustomResource_resource(ctx, field)
+			case "name":
+				return ec.fieldContext_CustomResource_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_CustomResource_namespace(ctx, field)
+			case "labels":
+				return ec.fieldContext_CustomResource_labels(ctx, field)
+			case "ready":
+				return ec.fieldContext_CustomResource_ready(ctx, field)
+			case "reason":
+				return ec.fieldContext_CustomResource_reason(ctx, field)
+			case "message":
+				return ec.fieldContext_CustomResource_message(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_CustomResource_createdAt(ctx, field)
+			case "yaml":
+				return ec.fieldContext_CustomResource_yaml(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CustomResource", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Namespace_customResources_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Namespace_apiResources(ctx context.Context, field graphql.CollectedField, obj *model.Namespace) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Namespace_apiResources(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Namespace().APIResources(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.APIResource)
+	fc.Result = res
+	return ec.marshalNApiResource2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐAPIResourceᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Namespace_apiResources(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Namespace",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "group":
+				return ec.fieldContext_ApiResource_group(ctx, field)
+			case "version":
+				return ec.fieldContext_ApiResource_version(ctx, field)
+			case "kind":
+				return ec.fieldContext_ApiResource_kind(ctx, field)
+			case "resource":
+				return ec.fieldContext_ApiResource_resource(ctx, field)
+			case "namespaced":
+				return ec.fieldContext_ApiResource_namespaced(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ApiResource", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -4789,6 +6253,10 @@ func (ec *executionContext) fieldContext_Query_contexts(_ context.Context, field
 				return ec.fieldContext_KubeContext_pods(ctx, field)
 			case "pod":
 				return ec.fieldContext_KubeContext_pod(ctx, field)
+			case "apiResources":
+				return ec.fieldContext_KubeContext_apiResources(ctx, field)
+			case "customResources":
+				return ec.fieldContext_KubeContext_customResources(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type KubeContext", field.Name)
 		},
@@ -4933,6 +6401,240 @@ func (ec *executionContext) fieldContext_Query_configMap(ctx context.Context, fi
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_configMap_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_apiResources(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_apiResources(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().APIResources(rctx, fc.Args["context"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.APIResource)
+	fc.Result = res
+	return ec.marshalNApiResource2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐAPIResourceᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_apiResources(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "group":
+				return ec.fieldContext_ApiResource_group(ctx, field)
+			case "version":
+				return ec.fieldContext_ApiResource_version(ctx, field)
+			case "kind":
+				return ec.fieldContext_ApiResource_kind(ctx, field)
+			case "resource":
+				return ec.fieldContext_ApiResource_resource(ctx, field)
+			case "namespaced":
+				return ec.fieldContext_ApiResource_namespaced(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ApiResource", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_apiResources_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_customResources(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_customResources(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().CustomResources(rctx, fc.Args["context"].(string), fc.Args["namespace"].(*string), fc.Args["filter"].(*model.CustomResourceFilter))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.CustomResource)
+	fc.Result = res
+	return ec.marshalNCustomResource2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResourceᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_customResources(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_CustomResource_context(ctx, field)
+			case "apiVersion":
+				return ec.fieldContext_CustomResource_apiVersion(ctx, field)
+			case "kind":
+				return ec.fieldContext_CustomResource_kind(ctx, field)
+			case "group":
+				return ec.fieldContext_CustomResource_group(ctx, field)
+			case "version":
+				return ec.fieldContext_CustomResource_version(ctx, field)
+			case "resource":
+				return ec.fieldContext_CustomResource_resource(ctx, field)
+			case "name":
+				return ec.fieldContext_CustomResource_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_CustomResource_namespace(ctx, field)
+			case "labels":
+				return ec.fieldContext_CustomResource_labels(ctx, field)
+			case "ready":
+				return ec.fieldContext_CustomResource_ready(ctx, field)
+			case "reason":
+				return ec.fieldContext_CustomResource_reason(ctx, field)
+			case "message":
+				return ec.fieldContext_CustomResource_message(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_CustomResource_createdAt(ctx, field)
+			case "yaml":
+				return ec.fieldContext_CustomResource_yaml(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CustomResource", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_customResources_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_customResource(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_customResource(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().CustomResource(rctx, fc.Args["context"].(string), fc.Args["group"].(string), fc.Args["version"].(string), fc.Args["resource"].(string), fc.Args["namespace"].(*string), fc.Args["name"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.CustomResource)
+	fc.Result = res
+	return ec.marshalOCustomResource2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResource(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_customResource(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_CustomResource_context(ctx, field)
+			case "apiVersion":
+				return ec.fieldContext_CustomResource_apiVersion(ctx, field)
+			case "kind":
+				return ec.fieldContext_CustomResource_kind(ctx, field)
+			case "group":
+				return ec.fieldContext_CustomResource_group(ctx, field)
+			case "version":
+				return ec.fieldContext_CustomResource_version(ctx, field)
+			case "resource":
+				return ec.fieldContext_CustomResource_resource(ctx, field)
+			case "name":
+				return ec.fieldContext_CustomResource_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_CustomResource_namespace(ctx, field)
+			case "labels":
+				return ec.fieldContext_CustomResource_labels(ctx, field)
+			case "ready":
+				return ec.fieldContext_CustomResource_ready(ctx, field)
+			case "reason":
+				return ec.fieldContext_CustomResource_reason(ctx, field)
+			case "message":
+				return ec.fieldContext_CustomResource_message(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_CustomResource_createdAt(ctx, field)
+			case "yaml":
+				return ec.fieldContext_CustomResource_yaml(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CustomResource", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_customResource_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5149,6 +6851,10 @@ func (ec *executionContext) fieldContext_Query_namespaces(ctx context.Context, f
 				return ec.fieldContext_Namespace_deployments(ctx, field)
 			case "pods":
 				return ec.fieldContext_Namespace_pods(ctx, field)
+			case "customResources":
+				return ec.fieldContext_Namespace_customResources(ctx, field)
+			case "apiResources":
+				return ec.fieldContext_Namespace_apiResources(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Namespace", field.Name)
 		},
@@ -5211,6 +6917,10 @@ func (ec *executionContext) fieldContext_Query_namespace(ctx context.Context, fi
 				return ec.fieldContext_Namespace_deployments(ctx, field)
 			case "pods":
 				return ec.fieldContext_Namespace_pods(ctx, field)
+			case "customResources":
+				return ec.fieldContext_Namespace_customResources(ctx, field)
+			case "apiResources":
+				return ec.fieldContext_Namespace_apiResources(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Namespace", field.Name)
 		},
@@ -8312,6 +10022,68 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputCustomResourceFilter(ctx context.Context, obj any) (model.CustomResourceFilter, error) {
+	var it model.CustomResourceFilter
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"nameContains", "kindContains", "group", "version", "kind", "resource"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "nameContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameContains"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameContains = data
+		case "kindContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kindContains"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.KindContains = data
+		case "group":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("group"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Group = data
+		case "version":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("version"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Version = data
+		case "kind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Kind = data
+		case "resource":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("resource"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Resource = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputDeploymentFilter(ctx context.Context, obj any) (model.DeploymentFilter, error) {
 	var it model.DeploymentFilter
 	asMap := map[string]any{}
@@ -8449,6 +10221,65 @@ func (ec *executionContext) unmarshalInputPodFilter(ctx context.Context, obj any
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
+
+var apiResourceImplementors = []string{"ApiResource"}
+
+func (ec *executionContext) _ApiResource(ctx context.Context, sel ast.SelectionSet, obj *model.APIResource) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, apiResourceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ApiResource")
+		case "group":
+			out.Values[i] = ec._ApiResource_group(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "version":
+			out.Values[i] = ec._ApiResource_version(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kind":
+			out.Values[i] = ec._ApiResource_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resource":
+			out.Values[i] = ec._ApiResource_resource(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "namespaced":
+			out.Values[i] = ec._ApiResource_namespaced(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
 
 var configMapImplementors = []string{"ConfigMap"}
 
@@ -8591,6 +10422,126 @@ func (ec *executionContext) _Container(ctx context.Context, sel ast.SelectionSet
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var customResourceImplementors = []string{"CustomResource"}
+
+func (ec *executionContext) _CustomResource(ctx context.Context, sel ast.SelectionSet, obj *model.CustomResource) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, customResourceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CustomResource")
+		case "context":
+			out.Values[i] = ec._CustomResource_context(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "apiVersion":
+			out.Values[i] = ec._CustomResource_apiVersion(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "kind":
+			out.Values[i] = ec._CustomResource_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "group":
+			out.Values[i] = ec._CustomResource_group(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "version":
+			out.Values[i] = ec._CustomResource_version(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "resource":
+			out.Values[i] = ec._CustomResource_resource(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "name":
+			out.Values[i] = ec._CustomResource_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "namespace":
+			out.Values[i] = ec._CustomResource_namespace(ctx, field, obj)
+		case "labels":
+			out.Values[i] = ec._CustomResource_labels(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "ready":
+			out.Values[i] = ec._CustomResource_ready(ctx, field, obj)
+		case "reason":
+			out.Values[i] = ec._CustomResource_reason(ctx, field, obj)
+		case "message":
+			out.Values[i] = ec._CustomResource_message(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._CustomResource_createdAt(ctx, field, obj)
+		case "yaml":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CustomResource_yaml(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -9152,6 +11103,78 @@ func (ec *executionContext) _KubeContext(ctx context.Context, sel ast.SelectionS
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "apiResources":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._KubeContext_apiResources(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "customResources":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._KubeContext_customResources(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -9329,6 +11352,78 @@ func (ec *executionContext) _Namespace(ctx context.Context, sel ast.SelectionSet
 					}
 				}()
 				res = ec._Namespace_pods(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "customResources":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Namespace_customResources(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "apiResources":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Namespace_apiResources(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -9575,6 +11670,69 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_configMap(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "apiResources":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_apiResources(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "customResources":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_customResources(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "customResource":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_customResource(ctx, field)
 				return res
 			}
 
@@ -10248,6 +12406,60 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) marshalNApiResource2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐAPIResourceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.APIResource) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNApiResource2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐAPIResource(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNApiResource2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐAPIResource(ctx context.Context, sel ast.SelectionSet, v *model.APIResource) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ApiResource(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v any) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -10370,6 +12582,60 @@ func (ec *executionContext) marshalNContainer2ᚖgithubᚗcomᚋcdreierᚋkubeql
 		return graphql.Null
 	}
 	return ec._Container(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCustomResource2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResourceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CustomResource) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCustomResource2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResource(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCustomResource2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResource(ctx context.Context, sel ast.SelectionSet, v *model.CustomResource) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CustomResource(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNDeployment2githubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐDeployment(ctx context.Context, sel ast.SelectionSet, v model.Deployment) graphql.Marshaler {
@@ -11122,6 +13388,21 @@ func (ec *executionContext) marshalOConfigMap2ᚖgithubᚗcomᚋcdreierᚋkubeql
 		return graphql.Null
 	}
 	return ec._ConfigMap(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOCustomResource2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResource(ctx context.Context, sel ast.SelectionSet, v *model.CustomResource) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CustomResource(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOCustomResourceFilter2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResourceFilter(ctx context.Context, v any) (*model.CustomResourceFilter, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputCustomResourceFilter(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalODeployment2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐDeployment(ctx context.Context, sel ast.SelectionSet, v *model.Deployment) graphql.Marshaler {

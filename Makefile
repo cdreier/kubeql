@@ -10,7 +10,8 @@ generate: generate-web
 generate-web:
 	@cat graph/common.graphqls graph/context.graphqls graph/deployment.graphqls \
 		graph/namespace.graphqls graph/pod.graphqls \
-		graph/configmap.graphqls graph/secret.graphqls > web/schema.graphql
+		graph/configmap.graphqls graph/secret.graphqls \
+		graph/customresource.graphqls > web/schema.graphql
 	cd web && npx gqty generate
 	@# CLI rewrites index.ts — restore hand-maintained client (gotchas defaults).
 	@git checkout -- web/src/gqty/index.ts 2>/dev/null || true

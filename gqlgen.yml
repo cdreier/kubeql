@@ -36,11 +36,23 @@ models:
         resolver: true
       pod:
         resolver: true
+      apiResources:
+        resolver: true
+      customResources:
+        resolver: true
   Namespace:
     fields:
       deployments:
         resolver: true
       pods:
+        resolver: true
+      customResources:
+        resolver: true
+      apiResources:
+        resolver: true
+  CustomResource:
+    fields:
+      yaml:
         resolver: true
   Deployment:
     fields:

@@ -6,6 +6,16 @@ import (
 	"time"
 )
 
+// A discovered API resource that is not a built-in Kubernetes kind (typically a CRD).
+type APIResource struct {
+	Group   string `json:"group"`
+	Version string `json:"version"`
+	Kind    string `json:"kind"`
+	// Plural resource name, e.g. kustomizations.
+	Resource   string `json:"resource"`
+	Namespaced bool   `json:"namespaced"`
+}
+
 type ConfigMap struct {
 	// Kubeconfig context this resource was loaded from.
 	Context   string `json:"context"`
@@ -28,6 +38,39 @@ type Container struct {
 	RestartCount int    `json:"restartCount"`
 	// e.g. Running, Waiting, Terminated.
 	State string `json:"state"`
+}
+
+// A generic custom resource instance (Flux Kustomization, cert-manager Certificate, …).
+type CustomResource struct {
+	// Kubeconfig context this resource was loaded from.
+	Context    string `json:"context"`
+	APIVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Group      string `json:"group"`
+	Version    string `json:"version"`
+	Resource   string `json:"resource"`
+	Name       string `json:"name"`
+	// Null when the resource is cluster-scoped.
+	Namespace *string  `json:"namespace,omitempty"`
+	Labels    []*Label `json:"labels"`
+	// status.conditions type=Ready (or Healthy/Available). Null when unknown.
+	Ready     *bool      `json:"ready,omitempty"`
+	Reason    *string    `json:"reason,omitempty"`
+	Message   *string    `json:"message,omitempty"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	// Full object as YAML.
+	Yaml string `json:"yaml"`
+}
+
+type CustomResourceFilter struct {
+	// Case-insensitive substring match on resource name.
+	NameContains *string `json:"nameContains,omitempty"`
+	// Case-insensitive substring on kind, resource, or API group (e.g. flux).
+	KindContains *string `json:"kindContains,omitempty"`
+	Group        *string `json:"group,omitempty"`
+	Version      *string `json:"version,omitempty"`
+	Kind         *string `json:"kind,omitempty"`
+	Resource     *string `json:"resource,omitempty"`
 }
 
 type Deployment struct {
@@ -94,6 +137,10 @@ type KubeContext struct {
 	Pods []*Pod `json:"pods"`
 	// Get a single pod in this context. Null if missing or cluster unreachable.
 	Pod *Pod `json:"pod,omitempty"`
+	// Discovered extension API resources (CRDs).
+	APIResources []*APIResource `json:"apiResources"`
+	// Custom resources. Namespace is optional (all namespaces when omitted).
+	CustomResources []*CustomResource `json:"customResources"`
 }
 
 type Label struct {
@@ -113,6 +160,10 @@ type Namespace struct {
 	Name        string        `json:"name"`
 	Deployments []*Deployment `json:"deployments"`
 	Pods        []*Pod        `json:"pods"`
+	// Namespaced custom resources in this namespace (CRDs / extension APIs).
+	CustomResources []*CustomResource `json:"customResources"`
+	// Discovered namespaced extension API resources (CRDs).
+	APIResources []*APIResource `json:"apiResources"`
 }
 
 // Filter namespaces by name and/or by whether they contain matching resources.

@@ -1,3 +1,19 @@
+.cr-fold {
+  margin-top: 1.75rem;
+}
+
+.cr-fold > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: #e8eaed;
+  margin-bottom: 0.75rem;
+}
+
+.cr-fold > summary:hover {
+  color: #fff;
+}
+
 .context-page .page-heading {
   display: flex;
   align-items: baseline;

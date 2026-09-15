@@ -35,6 +35,17 @@ export interface Scalars {
   Time: { input: string; output: string };
 }
 
+export interface CustomResourceFilter {
+  group?: InputMaybe<Scalars["String"]["input"]>;
+  kind?: InputMaybe<Scalars["String"]["input"]>;
+  /** Case-insensitive substring on kind, resource, or API group (e.g. flux). */
+  kindContains?: InputMaybe<Scalars["String"]["input"]>;
+  /** Case-insensitive substring match on resource name. */
+  nameContains?: InputMaybe<Scalars["String"]["input"]>;
+  resource?: InputMaybe<Scalars["String"]["input"]>;
+  version?: InputMaybe<Scalars["String"]["input"]>;
+}
+
 /** Filter deployments by name/labels and optionally by owned pods. */
 export interface DeploymentFilter {
   /** Keep deployments that have at least one pod matching this filter. */
@@ -77,6 +88,14 @@ export const scalarsEnumsHash: ScalarsEnumsHash = {
   Time: true,
 };
 export const generatedSchema = {
+  ApiResource: {
+    __typename: { __type: "String!" },
+    group: { __type: "String!" },
+    kind: { __type: "String!" },
+    namespaced: { __type: "Boolean!" },
+    resource: { __type: "String!" },
+    version: { __type: "String!" },
+  },
   ConfigMap: {
     __typename: { __type: "String!" },
     context: { __type: "String!" },
@@ -95,6 +114,31 @@ export const generatedSchema = {
     ready: { __type: "Boolean!" },
     restartCount: { __type: "Int!" },
     state: { __type: "String!" },
+  },
+  CustomResource: {
+    __typename: { __type: "String!" },
+    apiVersion: { __type: "String!" },
+    context: { __type: "String!" },
+    createdAt: { __type: "Time" },
+    group: { __type: "String!" },
+    kind: { __type: "String!" },
+    labels: { __type: "[Label!]!" },
+    message: { __type: "String" },
+    name: { __type: "String!" },
+    namespace: { __type: "String" },
+    ready: { __type: "Boolean" },
+    reason: { __type: "String" },
+    resource: { __type: "String!" },
+    version: { __type: "String!" },
+    yaml: { __type: "String!" },
+  },
+  CustomResourceFilter: {
+    group: { __type: "String" },
+    kind: { __type: "String" },
+    kindContains: { __type: "String" },
+    nameContains: { __type: "String" },
+    resource: { __type: "String" },
+    version: { __type: "String" },
   },
   Deployment: {
     __typename: { __type: "String!" },
@@ -124,8 +168,13 @@ export const generatedSchema = {
   },
   KubeContext: {
     __typename: { __type: "String!" },
+    apiResources: { __type: "[ApiResource!]!" },
     cluster: { __type: "String!" },
     current: { __type: "Boolean!" },
+    customResources: {
+      __type: "[CustomResource!]!",
+      __args: { filter: "CustomResourceFilter", namespace: "String" },
+    },
     defaultNamespace: { __type: "String" },
     deployment: {
       __type: "Deployment",
@@ -161,7 +210,12 @@ export const generatedSchema = {
   },
   Namespace: {
     __typename: { __type: "String!" },
+    apiResources: { __type: "[ApiResource!]!" },
     context: { __type: "String!" },
+    customResources: {
+      __type: "[CustomResource!]!",
+      __args: { filter: "CustomResourceFilter" },
+    },
     deployments: {
       __type: "[Deployment!]!",
       __args: { filter: "DeploymentFilter" },
@@ -178,9 +232,9 @@ export const generatedSchema = {
     __typename: { __type: "String!" },
     containers: { __type: "[Container!]!" },
     context: { __type: "String!" },
-    createdAt: { __type: "Time" },
     cpuLimit: { __type: "String" },
     cpuUsage: { __type: "String" },
+    createdAt: { __type: "Time" },
     labels: { __type: "[Label!]!" },
     lastRestartAt: { __type: "Time" },
     memoryLimit: { __type: "String" },
@@ -214,6 +268,7 @@ export const generatedSchema = {
   mutation: {},
   query: {
     __typename: { __type: "String!" },
+    apiResources: { __type: "[ApiResource!]!", __args: { context: "String!" } },
     configMap: {
       __type: "ConfigMap",
       __args: { context: "String!", name: "String!", namespace: "String!" },
@@ -223,6 +278,25 @@ export const generatedSchema = {
       __args: { context: "String!", namespace: "String!" },
     },
     contexts: { __type: "[KubeContext!]!" },
+    customResource: {
+      __type: "CustomResource",
+      __args: {
+        context: "String!",
+        group: "String!",
+        name: "String!",
+        namespace: "String",
+        resource: "String!",
+        version: "String!",
+      },
+    },
+    customResources: {
+      __type: "[CustomResource!]!",
+      __args: {
+        context: "String!",
+        filter: "CustomResourceFilter",
+        namespace: "String",
+      },
+    },
     deployment: {
       __type: "Deployment",
       __args: { context: "String!", name: "String!", namespace: "String!" },
@@ -283,6 +357,21 @@ export const generatedSchema = {
   },
 } as const;
 
+/**
+ * A discovered API resource that is not a built-in Kubernetes kind (typically a CRD).
+ */
+export interface ApiResource {
+  __typename?: "ApiResource";
+  group?: Scalars["String"]["output"];
+  kind?: Scalars["String"]["output"];
+  namespaced?: Scalars["Boolean"]["output"];
+  /**
+   * Plural resource name, e.g. kustomizations.
+   */
+  resource?: Scalars["String"]["output"];
+  version?: Scalars["String"]["output"];
+}
+
 export interface ConfigMap {
   __typename?: "ConfigMap";
   /**
@@ -317,6 +406,39 @@ export interface Container {
    * e.g. Running, Waiting, Terminated.
    */
   state?: Scalars["String"]["output"];
+}
+
+/**
+ * A generic custom resource instance (Flux Kustomization, cert-manager Certificate, …).
+ */
+export interface CustomResource {
+  __typename?: "CustomResource";
+  apiVersion?: Scalars["String"]["output"];
+  /**
+   * Kubeconfig context this resource was loaded from.
+   */
+  context?: Scalars["String"]["output"];
+  createdAt?: Maybe<Scalars["Time"]["output"]>;
+  group?: Scalars["String"]["output"];
+  kind?: Scalars["String"]["output"];
+  labels: Array<Label>;
+  message?: Maybe<Scalars["String"]["output"]>;
+  name?: Scalars["String"]["output"];
+  /**
+   * Null when the resource is cluster-scoped.
+   */
+  namespace?: Maybe<Scalars["String"]["output"]>;
+  /**
+   * status.conditions type=Ready (or Healthy/Available). Null when unknown.
+   */
+  ready?: Maybe<Scalars["Boolean"]["output"]>;
+  reason?: Maybe<Scalars["String"]["output"]>;
+  resource?: Scalars["String"]["output"];
+  version?: Scalars["String"]["output"];
+  /**
+   * Full object as YAML.
+   */
+  yaml?: Scalars["String"]["output"];
 }
 
 export interface Deployment {
@@ -372,11 +494,22 @@ export interface KeyValue {
  */
 export interface KubeContext {
   __typename?: "KubeContext";
+  /**
+   * Discovered extension API resources (CRDs).
+   */
+  apiResources: Array<ApiResource>;
   cluster?: Scalars["String"]["output"];
   /**
    * True if this is the CLI/--context or kubeconfig current-context default.
    */
   current?: Scalars["Boolean"]["output"];
+  /**
+   * Custom resources. Namespace is optional (all namespaces when omitted).
+   */
+  customResources: (args?: {
+    filter?: Maybe<CustomResourceFilter>;
+    namespace?: Maybe<Scalars["String"]["input"]>;
+  }) => Array<CustomResource>;
   /**
    * Default namespace from the kubeconfig context entry, if set.
    */
@@ -440,9 +573,19 @@ export interface LogLine {
 export interface Namespace {
   __typename?: "Namespace";
   /**
+   * Discovered namespaced extension API resources (CRDs).
+   */
+  apiResources: Array<ApiResource>;
+  /**
    * Kubeconfig context this resource was loaded from.
    */
   context?: Scalars["String"]["output"];
+  /**
+   * Namespaced custom resources in this namespace (CRDs / extension APIs).
+   */
+  customResources: (args?: {
+    filter?: Maybe<CustomResourceFilter>;
+  }) => Array<CustomResource>;
   deployments: (args?: {
     filter?: Maybe<DeploymentFilter>;
   }) => Array<Deployment>;
@@ -458,10 +601,6 @@ export interface Pod {
    */
   context?: Scalars["String"]["output"];
   /**
-   * Pod creation time (metadata.creationTimestamp).
-   */
-  createdAt?: Maybe<Scalars["Time"]["output"]>;
-  /**
    * Sum of container CPU limits from the pod spec. Null when unset.
    */
   cpuLimit?: Maybe<Scalars["String"]["output"]>;
@@ -469,6 +608,10 @@ export interface Pod {
    * Optional; requires metrics-server. Null when unavailable.
    */
   cpuUsage?: Maybe<Scalars["String"]["output"]>;
+  /**
+   * Pod creation time (metadata.creationTimestamp).
+   */
+  createdAt?: Maybe<Scalars["Time"]["output"]>;
   labels: Array<Label>;
   lastRestartAt?: Maybe<Scalars["Time"]["output"]>;
   /**
@@ -529,6 +672,12 @@ export interface Mutation {
 export interface Query {
   __typename?: "Query";
   /**
+   * List discovered extension API resources (CRDs) in a kubeconfig context.
+   */
+  apiResources: (args: {
+    context: Scalars["String"]["input"];
+  }) => Array<ApiResource>;
+  /**
    * Get a single ConfigMap. Null if missing.
    */
   configMap: (args: {
@@ -548,6 +697,25 @@ export interface Query {
    * contexts { name namespaces { name } }.
    */
   contexts: Array<KubeContext>;
+  /**
+   * Get a single custom resource. Null if missing.
+   */
+  customResource: (args: {
+    context: Scalars["String"]["input"];
+    group: Scalars["String"]["input"];
+    name: Scalars["String"]["input"];
+    namespace?: Maybe<Scalars["String"]["input"]>;
+    resource: Scalars["String"]["input"];
+    version: Scalars["String"]["input"];
+  }) => Maybe<CustomResource>;
+  /**
+   * List custom resource instances. Namespace is optional.
+   */
+  customResources: (args: {
+    context: Scalars["String"]["input"];
+    filter?: Maybe<CustomResourceFilter>;
+    namespace?: Maybe<Scalars["String"]["input"]>;
+  }) => Array<CustomResource>;
   /**
    * Get a single deployment.
    */

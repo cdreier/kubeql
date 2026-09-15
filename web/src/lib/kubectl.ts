@@ -44,6 +44,21 @@ export function kubectlGet(
   ]);
 }
 
+/** `kubectl get kustomizations.kustomize.toolkit.fluxcd.io NAME -n NS -o yaml` */
+export function kubectlGetCustom(
+  resource: string,
+  group: string,
+  context: string,
+  namespace: string | null | undefined,
+  name: string
+): string {
+  const qualified = group ? `${resource}.${group}` : resource;
+  const args = ["get", qualified, name];
+  if (namespace) args.push("-n", namespace);
+  args.push("--context", context, "-o", "yaml");
+  return kubectl(args);
+}
+
 export function kubectlExec(
   context: string,
   namespace: string,

@@ -23,6 +23,11 @@ type ClusterReader interface {
 	ListSecrets(ctx context.Context, namespace string) ([]Secret, error)
 	GetSecret(ctx context.Context, namespace, name string) (*Secret, error)
 
+	ListAPIResources(ctx context.Context) ([]APIResource, error)
+	ListCustomResources(ctx context.Context, group, version, resource, namespace string) ([]CustomResource, error)
+	GetCustomResource(ctx context.Context, group, version, resource, namespace, name string) (*CustomResource, error)
+	CustomResourceYAML(ctx context.Context, group, version, resource, namespace, name string) (string, error)
+
 	// DeploymentYAML / PodYAML return the object serialized as YAML.
 	DeploymentYAML(ctx context.Context, namespace, name string) (string, error)
 	PodYAML(ctx context.Context, namespace, name string) (string, error)
@@ -115,4 +120,29 @@ type Container struct {
 	Ready        bool
 	RestartCount int32
 	State        string
+}
+
+// APIResource is a discovered extension API (typically a CRD), not a built-in kind.
+type APIResource struct {
+	Group      string
+	Version    string
+	Kind       string
+	Resource   string // plural, e.g. kustomizations
+	Namespaced bool
+}
+
+// CustomResource is a generic CR instance (Flux Kustomization, cert-manager Certificate, …).
+type CustomResource struct {
+	APIVersion string
+	Kind       string
+	Group      string
+	Version    string
+	Resource   string
+	Name       string
+	Namespace  string // empty when cluster-scoped
+	Labels     map[string]string
+	Ready      *bool // status.conditions type=Ready/Healthy/Available; nil if unknown
+	Reason     string
+	Message    string
+	CreatedAt  *time.Time
 }

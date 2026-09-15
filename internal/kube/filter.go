@@ -67,6 +67,71 @@ func containsFold(haystack, needle string) bool {
 	return strings.Contains(strings.ToLower(haystack), strings.ToLower(needle))
 }
 
+// CustomResourceFilter filters discovered CRDs and their instances.
+type CustomResourceFilter struct {
+	NameContains *string
+	KindContains *string
+	Group        *string
+	Version      *string
+	Kind         *string
+	Resource     *string
+}
+
+// MatchAPIResource returns true when the discovered API matches group/kind clauses.
+func MatchAPIResource(a APIResource, f *CustomResourceFilter) bool {
+	if f == nil {
+		return true
+	}
+	if f.Group != nil && a.Group != *f.Group {
+		return false
+	}
+	if f.Version != nil && a.Version != *f.Version {
+		return false
+	}
+	if f.Kind != nil && !strings.EqualFold(a.Kind, *f.Kind) {
+		return false
+	}
+	if f.Resource != nil && a.Resource != *f.Resource {
+		return false
+	}
+	if f.KindContains != nil {
+		n := *f.KindContains
+		if !containsFold(a.Kind, n) && !containsFold(a.Resource, n) && !containsFold(a.Group, n) {
+			return false
+		}
+	}
+	return true
+}
+
+// MatchCustomResource returns true when the instance matches name/kind clauses.
+func MatchCustomResource(cr CustomResource, f *CustomResourceFilter) bool {
+	if f == nil {
+		return true
+	}
+	if f.NameContains != nil && !containsFold(cr.Name, *f.NameContains) {
+		return false
+	}
+	if f.Group != nil && cr.Group != *f.Group {
+		return false
+	}
+	if f.Version != nil && cr.Version != *f.Version {
+		return false
+	}
+	if f.Kind != nil && !strings.EqualFold(cr.Kind, *f.Kind) {
+		return false
+	}
+	if f.Resource != nil && cr.Resource != *f.Resource {
+		return false
+	}
+	if f.KindContains != nil {
+		n := *f.KindContains
+		if !containsFold(cr.Kind, n) && !containsFold(cr.Resource, n) && !containsFold(cr.Group, n) {
+			return false
+		}
+	}
+	return true
+}
+
 // LabelSelector returns the selector string or empty.
 func (f *DeploymentFilter) LabelSelectorString() string {
 	if f == nil || f.LabelSelector == nil {

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -152,6 +153,9 @@ func (r *Registry) Client(contextName string) (*Client, error) {
 	}
 
 	c := &Client{cs: cs, context: contextName}
+	if dyn, err := dynamic.NewForConfig(cfg); err == nil {
+		c.dyn = dyn
+	}
 	if mc, err := metricsclient.NewForConfig(cfg); err == nil {
 		c.metrics = mc
 	}

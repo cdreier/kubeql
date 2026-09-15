@@ -155,6 +155,71 @@ func toNamespaces(kubeContext string, list []kube.Namespace) []*model.Namespace 
 	return out
 }
 
+func toAPIResource(a kube.APIResource) *model.APIResource {
+	return &model.APIResource{
+		Group:      a.Group,
+		Version:    a.Version,
+		Kind:       a.Kind,
+		Resource:   a.Resource,
+		Namespaced: a.Namespaced,
+	}
+}
+
+func toAPIResources(list []kube.APIResource) []*model.APIResource {
+	out := make([]*model.APIResource, 0, len(list))
+	for _, a := range list {
+		out = append(out, toAPIResource(a))
+	}
+	return out
+}
+
+func toCustomResource(kubeContext string, cr kube.CustomResource) *model.CustomResource {
+	return &model.CustomResource{
+		Context:    kubeContext,
+		APIVersion: cr.APIVersion,
+		Kind:       cr.Kind,
+		Group:      cr.Group,
+		Version:    cr.Version,
+		Resource:   cr.Resource,
+		Name:       cr.Name,
+		Namespace:  emptyToNil(cr.Namespace),
+		Labels:     toLabels(cr.Labels),
+		Ready:      cr.Ready,
+		Reason:     emptyToNil(cr.Reason),
+		Message:    emptyToNil(cr.Message),
+		CreatedAt:  cr.CreatedAt,
+	}
+}
+
+func toCustomResources(kubeContext string, list []kube.CustomResource) []*model.CustomResource {
+	out := make([]*model.CustomResource, 0, len(list))
+	for _, cr := range list {
+		out = append(out, toCustomResource(kubeContext, cr))
+	}
+	return out
+}
+
+func mapCustomResourceFilter(f *model.CustomResourceFilter) *kube.CustomResourceFilter {
+	if f == nil {
+		return nil
+	}
+	return &kube.CustomResourceFilter{
+		NameContains: f.NameContains,
+		KindContains: f.KindContains,
+		Group:        f.Group,
+		Version:      f.Version,
+		Kind:         f.Kind,
+		Resource:     f.Resource,
+	}
+}
+
+func emptyToNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 func toKubeContext(c kube.ContextInfo) *model.KubeContext {
 	var ns *string
 	if c.Namespace != "" {

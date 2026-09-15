@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
+	"sync"
 )
 
 // Service applies filters and composes ClusterReader calls for the GraphQL layer.
@@ -321,6 +323,116 @@ func (s *Service) PodYAML(ctx context.Context, kubeContext, namespace, name stri
 		return "", err
 	}
 	return r.PodYAML(ctx, namespace, name)
+}
+
+func (s *Service) ListAPIResources(ctx context.Context, kubeContext string, namespaced *bool) ([]APIResource, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+	all, err := r.ListAPIResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if namespaced == nil {
+		return all, nil
+	}
+	out := make([]APIResource, 0, len(all))
+	for _, a := range all {
+		if a.Namespaced == *namespaced {
+			out = append(out, a)
+		}
+	}
+	return out, nil
+}
+
+func (s *Service) ListCustomResources(ctx context.Context, kubeContext, namespace string, f *CustomResourceFilter) ([]CustomResource, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+	apis, err := r.ListAPIResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	selected := make([]APIResource, 0, len(apis))
+	for _, a := range apis {
+		if namespace != "" && !a.Namespaced {
+			continue
+		}
+		if !MatchAPIResource(a, f) {
+			continue
+		}
+		selected = append(selected, a)
+	}
+
+	type listed struct {
+		items []CustomResource
+		err   error
+	}
+	ch := make(chan listed, len(selected))
+	sem := make(chan struct{}, 8)
+	var wg sync.WaitGroup
+	for _, api := range selected {
+		api := api
+		ns := namespace
+		if !api.Namespaced {
+			ns = ""
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			items, err := r.ListCustomResources(ctx, api.Group, api.Version, api.Resource, ns)
+			ch <- listed{items: items, err: err}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	out := make([]CustomResource, 0)
+	for res := range ch {
+		if res.err != nil {
+			return nil, res.err
+		}
+		for _, cr := range res.items {
+			if MatchCustomResource(cr, f) {
+				out = append(out, cr)
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Group != out[j].Group {
+			return out[i].Group < out[j].Group
+		}
+		if out[i].Kind != out[j].Kind {
+			return out[i].Kind < out[j].Kind
+		}
+		if out[i].Namespace != out[j].Namespace {
+			return out[i].Namespace < out[j].Namespace
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out, nil
+}
+
+func (s *Service) GetCustomResource(ctx context.Context, kubeContext, group, version, resource, namespace, name string) (*CustomResource, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+	return r.GetCustomResource(ctx, group, version, resource, namespace, name)
+}
+
+func (s *Service) CustomResourceYAML(ctx context.Context, kubeContext, group, version, resource, namespace, name string) (string, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return "", err
+	}
+	return r.CustomResourceYAML(ctx, group, version, resource, namespace, name)
 }
 
 func (s *Service) StreamPodLogs(ctx context.Context, kubeContext string, opts LogOptions) (io.ReadCloser, error) {
