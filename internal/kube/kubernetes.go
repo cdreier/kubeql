@@ -10,6 +10,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -123,6 +124,58 @@ func (c *Client) GetDeployment(ctx context.Context, namespace, name string) (*De
 		return nil, err
 	}
 	mapped := mapDeployment(d)
+	return &mapped, nil
+}
+
+func (c *Client) ListCronJobs(ctx context.Context, namespace, labelSelector string) ([]CronJob, error) {
+	list, err := c.cs.BatchV1().CronJobs(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]CronJob, 0, len(list.Items))
+	for i := range list.Items {
+		out = append(out, mapCronJob(&list.Items[i]))
+	}
+	return out, nil
+}
+
+func (c *Client) GetCronJob(ctx context.Context, namespace, name string) (*CronJob, error) {
+	cj, err := c.cs.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	mapped := mapCronJob(cj)
+	return &mapped, nil
+}
+
+func (c *Client) ListJobs(ctx context.Context, namespace, labelSelector string) ([]Job, error) {
+	list, err := c.cs.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Job, 0, len(list.Items))
+	for i := range list.Items {
+		out = append(out, mapJob(&list.Items[i]))
+	}
+	return out, nil
+}
+
+func (c *Client) GetJob(ctx context.Context, namespace, name string) (*Job, error) {
+	j, err := c.cs.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	mapped := mapJob(j)
 	return &mapped, nil
 }
 
@@ -254,6 +307,22 @@ func (c *Client) DeploymentYAML(ctx context.Context, namespace, name string) (st
 	return toYAML(d)
 }
 
+func (c *Client) CronJobYAML(ctx context.Context, namespace, name string) (string, error) {
+	cj, err := c.cs.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return toYAML(cj)
+}
+
+func (c *Client) JobYAML(ctx context.Context, namespace, name string) (string, error) {
+	j, err := c.cs.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return toYAML(j)
+}
+
 func (c *Client) PodYAML(ctx context.Context, namespace, name string) (string, error) {
 	p, err := c.cs.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -300,6 +369,114 @@ func mapDeployment(d *appsv1.Deployment) Deployment {
 
 func deploymentStatus(d *appsv1.Deployment) string {
 	return fmt.Sprintf("%d/%d", d.Status.ReadyReplicas, ptrInt32(d.Spec.Replicas))
+}
+
+func mapCronJob(cj *batchv1.CronJob) CronJob {
+	suspend := false
+	if cj.Spec.Suspend != nil {
+		suspend = *cj.Spec.Suspend
+	}
+	tz := ""
+	if cj.Spec.TimeZone != nil {
+		tz = *cj.Spec.TimeZone
+	}
+	cms, secrets := collectPodConfigAndSecrets(cj.Spec.JobTemplate.Spec.Template.Spec)
+	policy := string(cj.Spec.ConcurrencyPolicy)
+	if policy == "" {
+		policy = "Allow"
+	}
+	return CronJob{
+		Name:               cj.Name,
+		Namespace:          cj.Namespace,
+		Schedule:           cj.Spec.Schedule,
+		TimeZone:           tz,
+		Suspend:            suspend,
+		ConcurrencyPolicy:  policy,
+		LastScheduleTime:   metaTimePtr(cj.Status.LastScheduleTime),
+		LastSuccessfulTime: metaTimePtr(cj.Status.LastSuccessfulTime),
+		Active:             int32(len(cj.Status.Active)),
+		Status:             cronJobStatus(cj),
+		Labels:             copyMap(cj.Labels),
+		ConfigMapRefs:      cms,
+		SecretRefs:         secrets,
+	}
+}
+
+func cronJobStatus(cj *batchv1.CronJob) string {
+	if cj.Spec.Suspend != nil && *cj.Spec.Suspend {
+		return "Suspended"
+	}
+	if n := len(cj.Status.Active); n > 0 {
+		return fmt.Sprintf("Active %d", n)
+	}
+	return "Idle"
+}
+
+func mapJob(j *batchv1.Job) Job {
+	completions := int32(1)
+	if j.Spec.Completions != nil {
+		completions = *j.Spec.Completions
+	}
+	selector := map[string]string{}
+	if j.Spec.Selector != nil {
+		for k, v := range j.Spec.Selector.MatchLabels {
+			selector[k] = v
+		}
+	}
+	ownerKind, ownerName := controllerOwner(j.OwnerReferences)
+	cms, secrets := collectPodConfigAndSecrets(j.Spec.Template.Spec)
+	return Job{
+		Name:           j.Name,
+		Namespace:      j.Namespace,
+		Completions:    completions,
+		Succeeded:      j.Status.Succeeded,
+		Failed:         j.Status.Failed,
+		Active:         j.Status.Active,
+		Status:         jobStatus(j),
+		StartTime:      metaTimePtr(j.Status.StartTime),
+		CompletionTime: metaTimePtr(j.Status.CompletionTime),
+		Labels:         copyMap(j.Labels),
+		Selector:       selector,
+		OwnerKind:      ownerKind,
+		OwnerName:      ownerName,
+		ConfigMapRefs:  cms,
+		SecretRefs:     secrets,
+	}
+}
+
+func jobStatus(j *batchv1.Job) string {
+	for _, c := range j.Status.Conditions {
+		if c.Type == batchv1.JobComplete && c.Status == corev1.ConditionTrue {
+			return "Complete"
+		}
+		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
+			return "Failed"
+		}
+	}
+	if j.Status.Active > 0 {
+		return "Running"
+	}
+	return "Pending"
+}
+
+func controllerOwner(owners []metav1.OwnerReference) (kind, name string) {
+	for _, o := range owners {
+		if o.Controller != nil && *o.Controller {
+			return o.Kind, o.Name
+		}
+	}
+	if len(owners) > 0 {
+		return owners[0].Kind, owners[0].Name
+	}
+	return "", ""
+}
+
+func metaTimePtr(t *metav1.Time) *time.Time {
+	if t == nil || t.IsZero() {
+		return nil
+	}
+	tt := t.Time
+	return &tt
 }
 
 func mapPod(p *corev1.Pod) Pod {

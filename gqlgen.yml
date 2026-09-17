@@ -32,6 +32,10 @@ models:
         resolver: true
       deployment:
         resolver: true
+      cronJobs:
+        resolver: true
+      cronJob:
+        resolver: true
       pods:
         resolver: true
       pod:
@@ -43,6 +47,8 @@ models:
   Namespace:
     fields:
       deployments:
+        resolver: true
+      cronJobs:
         resolver: true
       pods:
         resolver: true
@@ -65,6 +71,24 @@ models:
       configMaps:
         resolver: true
       secrets:
+        resolver: true
+  CronJob:
+    fields:
+      jobs:
+        resolver: true
+      yaml:
+        resolver: true
+      pods:
+        resolver: true
+      configMaps:
+        resolver: true
+      secrets:
+        resolver: true
+  Job:
+    fields:
+      yaml:
+        resolver: true
+      pods:
         resolver: true
   ConfigMap:
     fields:

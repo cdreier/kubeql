@@ -9,6 +9,7 @@ import { Header } from "./components/Header";
 import "./components/FavoriteStar.css";
 import { ContextListPage } from "./pages/ContextListPage";
 import { ContextPage } from "./pages/ContextPage";
+import { CronJobPage } from "./pages/CronJobPage";
 import { DeploymentPage } from "./pages/DeploymentPage";
 import { NamespaceListPage } from "./pages/NamespaceListPage";
 import "./App.css";
@@ -101,6 +102,47 @@ function DeploymentLayout() {
   );
 }
 
+function CronJobLayout() {
+  const { contextName, nsName, cronName } = useParams<{
+    contextName: string;
+    nsName: string;
+    cronName: string;
+  }>();
+  const context = decodeParam(contextName);
+  const ns = decodeParam(nsName);
+  const cron = decodeParam(cronName);
+  return (
+    <>
+      <Header
+        crumbs={[
+          ...(context
+            ? [
+                {
+                  label: context,
+                  to: `/c/${encodeURIComponent(context)}`,
+                },
+              ]
+            : []),
+          ...(context && ns
+            ? [
+                {
+                  label: ns,
+                  to: `/c/${encodeURIComponent(context)}/n/${encodeURIComponent(ns)}`,
+                },
+              ]
+            : []),
+          ...(cron ? [{ label: cron }] : []),
+        ]}
+      />
+      <main className="page">
+        <CronJobPage
+          key={`${contextName ?? ""}/${nsName ?? ""}/${cronName ?? ""}`}
+        />
+      </main>
+    </>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -125,6 +167,10 @@ export default function App() {
           <Route
             path="/c/:contextName/n/:nsName/d/:depName"
             element={<DeploymentLayout />}
+          />
+          <Route
+            path="/c/:contextName/n/:nsName/cj/:cronName"
+            element={<CronJobLayout />}
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

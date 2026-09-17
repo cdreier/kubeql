@@ -29,6 +29,28 @@ export function crReadyClass(ready: boolean | null | undefined): string {
   return ready ? "ready-ok" : "ready-bad";
 }
 
+export function cronJobStatusClass(status: string | null | undefined): string {
+  if (!status) return "ready-unknown";
+  if (status === "Suspended") return "ready-unknown";
+  if (status === "Idle") return "ready-ok";
+  if (status.startsWith("Active")) return "ready-warn";
+  return "ready-unknown";
+}
+
+export function jobStatusClass(status: string | null | undefined): string {
+  switch (status) {
+    case "Complete":
+    case "Succeeded":
+      return "ready-ok";
+    case "Failed":
+      return "ready-bad";
+    case "Running":
+      return "ready-warn";
+    default:
+      return "ready-unknown";
+  }
+}
+
 export function containerStateClass(state: string | null | undefined): string {
   switch (state) {
     case "Running":

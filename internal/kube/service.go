@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Service applies filters and composes ClusterReader calls for the GraphQL layer.
@@ -138,6 +139,137 @@ func (s *Service) GetDeployment(ctx context.Context, kubeContext, namespace, nam
 	return r.GetDeployment(ctx, namespace, name)
 }
 
+// ListCronJobs lists cron jobs in namespace (empty = all) with optional filter.
+func (s *Service) ListCronJobs(ctx context.Context, kubeContext, namespace string, f *CronJobFilter) ([]CronJob, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+	list, err := r.ListCronJobs(ctx, namespace, f.LabelSelectorString())
+	if err != nil {
+		return nil, err
+	}
+	out := make([]CronJob, 0, len(list))
+	for _, cj := range list {
+		if MatchCronJob(cj, f) {
+			out = append(out, cj)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Namespace != out[j].Namespace {
+			return out[i].Namespace < out[j].Namespace
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out, nil
+}
+
+func (s *Service) GetCronJob(ctx context.Context, kubeContext, namespace, name string) (*CronJob, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+	return r.GetCronJob(ctx, namespace, name)
+}
+
+func (s *Service) GetJob(ctx context.Context, kubeContext, namespace, name string) (*Job, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+	return r.GetJob(ctx, namespace, name)
+}
+
+// JobsForCronJob returns Jobs owned by the CronJob, newest start time first.
+func (s *Service) JobsForCronJob(ctx context.Context, kubeContext string, cj CronJob) ([]Job, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+	jobs, err := r.ListJobs(ctx, cj.Namespace, "")
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Job, 0)
+	for _, j := range jobs {
+		if j.OwnerKind == "CronJob" && j.OwnerName == cj.Name {
+			out = append(out, j)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		ti, tj := jobSortTime(out[i]), jobSortTime(out[j])
+		if !ti.Equal(tj) {
+			return ti.After(tj)
+		}
+		return out[i].Name > out[j].Name
+	})
+	return out, nil
+}
+
+func jobSortTime(j Job) time.Time {
+	if j.StartTime != nil {
+		return *j.StartTime
+	}
+	return time.Time{}
+}
+
+// PodsForJob returns pods owned by the job (via selector or job-name label).
+func (s *Service) PodsForJob(ctx context.Context, kubeContext string, j Job, f *PodFilter) ([]Pod, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+	selector := SelectorToString(j.Selector)
+	if selector == "" {
+		selector = "job-name=" + j.Name
+	}
+	pods, err := r.ListPods(ctx, j.Namespace, selector)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Pod, 0, len(pods))
+	extra := f.LabelSelectorString()
+	for _, p := range pods {
+		if extra != "" && !labelsMatchSelector(p.Labels, extra) {
+			continue
+		}
+		pf := f
+		if f != nil {
+			cp := *f
+			cp.LabelSelector = nil
+			pf = &cp
+		}
+		if MatchPod(p, pf) {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+// PodsForCronJob returns pods belonging to Jobs owned by the CronJob.
+func (s *Service) PodsForCronJob(ctx context.Context, kubeContext string, cj CronJob, f *PodFilter) ([]Pod, error) {
+	jobs, err := s.JobsForCronJob(ctx, kubeContext, cj)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Pod, 0)
+	seen := map[string]struct{}{}
+	for _, j := range jobs {
+		pods, err := s.PodsForJob(ctx, kubeContext, j, f)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range pods {
+			if _, ok := seen[p.Name]; ok {
+				continue
+			}
+			seen[p.Name] = struct{}{}
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
 // ListPods lists pods in namespace (empty = all) with optional filter.
 func (s *Service) ListPods(ctx context.Context, kubeContext, namespace string, f *PodFilter) ([]Pod, error) {
 	r, err := s.readerFor(kubeContext)
@@ -242,20 +374,36 @@ func (s *Service) GetSecret(ctx context.Context, kubeContext, namespace, name st
 }
 
 func (s *Service) ConfigMapsForDeployment(ctx context.Context, kubeContext string, d Deployment) ([]ConfigMap, error) {
+	return s.configMapsForRefs(ctx, kubeContext, d.Namespace, d.ConfigMapRefs)
+}
+
+func (s *Service) SecretsForDeployment(ctx context.Context, kubeContext string, d Deployment) ([]Secret, error) {
+	return s.secretsForRefs(ctx, kubeContext, d.Namespace, d.SecretRefs)
+}
+
+func (s *Service) ConfigMapsForCronJob(ctx context.Context, kubeContext string, cj CronJob) ([]ConfigMap, error) {
+	return s.configMapsForRefs(ctx, kubeContext, cj.Namespace, cj.ConfigMapRefs)
+}
+
+func (s *Service) SecretsForCronJob(ctx context.Context, kubeContext string, cj CronJob) ([]Secret, error) {
+	return s.secretsForRefs(ctx, kubeContext, cj.Namespace, cj.SecretRefs)
+}
+
+func (s *Service) configMapsForRefs(ctx context.Context, kubeContext, namespace string, refs []ObjectRef) ([]ConfigMap, error) {
 	r, err := s.readerFor(kubeContext)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]ConfigMap, 0, len(d.ConfigMapRefs))
-	for _, ref := range d.ConfigMapRefs {
-		cm, err := r.GetConfigMap(ctx, d.Namespace, ref.Name)
+	out := make([]ConfigMap, 0, len(refs))
+	for _, ref := range refs {
+		cm, err := r.GetConfigMap(ctx, namespace, ref.Name)
 		if err != nil {
 			return nil, err
 		}
 		if cm == nil {
 			out = append(out, ConfigMap{
 				Name:      ref.Name,
-				Namespace: d.Namespace,
+				Namespace: namespace,
 				Refs:      ref.Via,
 				Missing:   true,
 			})
@@ -267,21 +415,21 @@ func (s *Service) ConfigMapsForDeployment(ctx context.Context, kubeContext strin
 	return out, nil
 }
 
-func (s *Service) SecretsForDeployment(ctx context.Context, kubeContext string, d Deployment) ([]Secret, error) {
+func (s *Service) secretsForRefs(ctx context.Context, kubeContext, namespace string, refs []ObjectRef) ([]Secret, error) {
 	r, err := s.readerFor(kubeContext)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]Secret, 0, len(d.SecretRefs))
-	for _, ref := range d.SecretRefs {
-		sec, err := r.GetSecret(ctx, d.Namespace, ref.Name)
+	out := make([]Secret, 0, len(refs))
+	for _, ref := range refs {
+		sec, err := r.GetSecret(ctx, namespace, ref.Name)
 		if err != nil {
 			return nil, err
 		}
 		if sec == nil {
 			out = append(out, Secret{
 				Name:      ref.Name,
-				Namespace: d.Namespace,
+				Namespace: namespace,
 				Refs:      ref.Via,
 				Missing:   true,
 			})
@@ -315,6 +463,22 @@ func (s *Service) DeploymentYAML(ctx context.Context, kubeContext, namespace, na
 		return "", err
 	}
 	return r.DeploymentYAML(ctx, namespace, name)
+}
+
+func (s *Service) CronJobYAML(ctx context.Context, kubeContext, namespace, name string) (string, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return "", err
+	}
+	return r.CronJobYAML(ctx, namespace, name)
+}
+
+func (s *Service) JobYAML(ctx context.Context, kubeContext, namespace, name string) (string, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return "", err
+	}
+	return r.JobYAML(ctx, namespace, name)
 }
 
 func (s *Service) PodYAML(ctx context.Context, kubeContext, namespace, name string) (string, error) {

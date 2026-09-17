@@ -40,6 +40,47 @@ type Container struct {
 	State string `json:"state"`
 }
 
+type CronJob struct {
+	// Kubeconfig context this resource was loaded from.
+	Context   string `json:"context"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	// Cron schedule, e.g. "0 * * * *".
+	Schedule string `json:"schedule"`
+	// IANA time zone from spec.timeZone, if set.
+	TimeZone *string `json:"timeZone,omitempty"`
+	Suspend  bool    `json:"suspend"`
+	// Allow, Forbid, or Replace.
+	ConcurrencyPolicy  string     `json:"concurrencyPolicy"`
+	LastScheduleTime   *time.Time `json:"lastScheduleTime,omitempty"`
+	LastSuccessfulTime *time.Time `json:"lastSuccessfulTime,omitempty"`
+	// Number of currently active jobs.
+	Active int `json:"active"`
+	// Human-readable summary: Suspended, Idle, or Active N.
+	Status string   `json:"status"`
+	Labels []*Label `json:"labels"`
+	// Full object as YAML.
+	Yaml string `json:"yaml"`
+	// Jobs owned by this CronJob, newest first.
+	Jobs []*Job `json:"jobs"`
+	// Pods belonging to owned jobs.
+	Pods []*Pod `json:"pods"`
+	// ConfigMaps referenced by the job template.
+	ConfigMaps []*ConfigMap `json:"configMaps"`
+	// Secrets referenced by the job template.
+	Secrets []*Secret `json:"secrets"`
+}
+
+// Filter cron jobs by name/labels and optional suspend state.
+type CronJobFilter struct {
+	// Case-insensitive substring match on cron job name.
+	NameContains *string `json:"nameContains,omitempty"`
+	// Kubernetes label selector (e.g. "app=backup").
+	LabelSelector *string `json:"labelSelector,omitempty"`
+	// When set, only cron jobs with this spec.suspend value.
+	Suspended *bool `json:"suspended,omitempty"`
+}
+
 // A generic custom resource instance (Flux Kustomization, cert-manager Certificate, …).
 type CustomResource struct {
 	// Kubeconfig context this resource was loaded from.
@@ -106,6 +147,26 @@ type DeploymentFilter struct {
 	HasPod *PodFilter `json:"hasPod,omitempty"`
 }
 
+type Job struct {
+	// Kubeconfig context this resource was loaded from.
+	Context     string `json:"context"`
+	Name        string `json:"name"`
+	Namespace   string `json:"namespace"`
+	Completions int    `json:"completions"`
+	Succeeded   int    `json:"succeeded"`
+	Failed      int    `json:"failed"`
+	Active      int    `json:"active"`
+	// Complete, Failed, Running, or Pending.
+	Status         string     `json:"status"`
+	StartTime      *time.Time `json:"startTime,omitempty"`
+	CompletionTime *time.Time `json:"completionTime,omitempty"`
+	Labels         []*Label   `json:"labels"`
+	// Full object as YAML.
+	Yaml string `json:"yaml"`
+	// Pods owned by this job.
+	Pods []*Pod `json:"pods"`
+}
+
 // A string map entry (ConfigMap/Secret data, etc.).
 type KeyValue struct {
 	Key   string `json:"key"`
@@ -137,6 +198,10 @@ type KubeContext struct {
 	Pods []*Pod `json:"pods"`
 	// Get a single pod in this context. Null if missing or cluster unreachable.
 	Pod *Pod `json:"pod,omitempty"`
+	// List cron jobs. Namespace is optional (all namespaces when omitted).
+	CronJobs []*CronJob `json:"cronJobs"`
+	// Get a single cron job in this context. Null if missing or cluster unreachable.
+	CronJob *CronJob `json:"cronJob,omitempty"`
 	// Discovered extension API resources (CRDs).
 	APIResources []*APIResource `json:"apiResources"`
 	// Custom resources. Namespace is optional (all namespaces when omitted).
@@ -160,6 +225,7 @@ type Namespace struct {
 	Name        string        `json:"name"`
 	Deployments []*Deployment `json:"deployments"`
 	Pods        []*Pod        `json:"pods"`
+	CronJobs    []*CronJob    `json:"cronJobs"`
 	// Namespaced custom resources in this namespace (CRDs / extension APIs).
 	CustomResources []*CustomResource `json:"customResources"`
 	// Discovered namespaced extension API resources (CRDs).

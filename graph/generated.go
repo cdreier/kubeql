@@ -42,8 +42,10 @@ type Config struct {
 
 type ResolverRoot interface {
 	ConfigMap() ConfigMapResolver
+	CronJob() CronJobResolver
 	CustomResource() CustomResourceResolver
 	Deployment() DeploymentResolver
+	Job() JobResolver
 	KubeContext() KubeContextResolver
 	Namespace() NamespaceResolver
 	Pod() PodResolver
@@ -83,6 +85,26 @@ type ComplexityRoot struct {
 		State        func(childComplexity int) int
 	}
 
+	CronJob struct {
+		Active             func(childComplexity int) int
+		ConcurrencyPolicy  func(childComplexity int) int
+		ConfigMaps         func(childComplexity int) int
+		Context            func(childComplexity int) int
+		Jobs               func(childComplexity int) int
+		Labels             func(childComplexity int) int
+		LastScheduleTime   func(childComplexity int) int
+		LastSuccessfulTime func(childComplexity int) int
+		Name               func(childComplexity int) int
+		Namespace          func(childComplexity int) int
+		Pods               func(childComplexity int, filter *model.PodFilter) int
+		Schedule           func(childComplexity int) int
+		Secrets            func(childComplexity int) int
+		Status             func(childComplexity int) int
+		Suspend            func(childComplexity int) int
+		TimeZone           func(childComplexity int) int
+		Yaml               func(childComplexity int) int
+	}
+
 	CustomResource struct {
 		APIVersion func(childComplexity int) int
 		Context    func(childComplexity int) int
@@ -116,6 +138,22 @@ type ComplexityRoot struct {
 		Yaml              func(childComplexity int) int
 	}
 
+	Job struct {
+		Active         func(childComplexity int) int
+		CompletionTime func(childComplexity int) int
+		Completions    func(childComplexity int) int
+		Context        func(childComplexity int) int
+		Failed         func(childComplexity int) int
+		Labels         func(childComplexity int) int
+		Name           func(childComplexity int) int
+		Namespace      func(childComplexity int) int
+		Pods           func(childComplexity int, filter *model.PodFilter) int
+		StartTime      func(childComplexity int) int
+		Status         func(childComplexity int) int
+		Succeeded      func(childComplexity int) int
+		Yaml           func(childComplexity int) int
+	}
+
 	KeyValue struct {
 		Key   func(childComplexity int) int
 		Value func(childComplexity int) int
@@ -124,6 +162,8 @@ type ComplexityRoot struct {
 	KubeContext struct {
 		APIResources     func(childComplexity int) int
 		Cluster          func(childComplexity int) int
+		CronJob          func(childComplexity int, namespace string, name string) int
+		CronJobs         func(childComplexity int, namespace *string, filter *model.CronJobFilter) int
 		Current          func(childComplexity int) int
 		CustomResources  func(childComplexity int, namespace *string, filter *model.CustomResourceFilter) int
 		DefaultNamespace func(childComplexity int) int
@@ -151,6 +191,7 @@ type ComplexityRoot struct {
 	Namespace struct {
 		APIResources    func(childComplexity int) int
 		Context         func(childComplexity int) int
+		CronJobs        func(childComplexity int, filter *model.CronJobFilter) int
 		CustomResources func(childComplexity int, filter *model.CustomResourceFilter) int
 		Deployments     func(childComplexity int, filter *model.DeploymentFilter) int
 		Name            func(childComplexity int) int
@@ -181,6 +222,8 @@ type ComplexityRoot struct {
 		ConfigMap       func(childComplexity int, context string, namespace string, name string) int
 		ConfigMaps      func(childComplexity int, context string, namespace string) int
 		Contexts        func(childComplexity int) int
+		CronJob         func(childComplexity int, context string, namespace string, name string) int
+		CronJobs        func(childComplexity int, context string, namespace *string, filter *model.CronJobFilter) int
 		CustomResource  func(childComplexity int, context string, group string, version string, resource string, namespace *string, name string) int
 		CustomResources func(childComplexity int, context string, namespace *string, filter *model.CustomResourceFilter) int
 		Deployment      func(childComplexity int, context string, namespace string, name string) int
@@ -206,6 +249,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
+		CronJobStatus    func(childComplexity int, context string, namespace string, name string) int
 		DeploymentStatus func(childComplexity int, context string, namespace string, name string) int
 		PodLogs          func(childComplexity int, context string, namespace string, name string, container *string, tailLines *int) int
 		PodStatus        func(childComplexity int, context string, namespace string, name string) int
@@ -214,6 +258,13 @@ type ComplexityRoot struct {
 
 type ConfigMapResolver interface {
 	Yaml(ctx context.Context, obj *model.ConfigMap) (string, error)
+}
+type CronJobResolver interface {
+	Yaml(ctx context.Context, obj *model.CronJob) (string, error)
+	Jobs(ctx context.Context, obj *model.CronJob) ([]*model.Job, error)
+	Pods(ctx context.Context, obj *model.CronJob, filter *model.PodFilter) ([]*model.Pod, error)
+	ConfigMaps(ctx context.Context, obj *model.CronJob) ([]*model.ConfigMap, error)
+	Secrets(ctx context.Context, obj *model.CronJob) ([]*model.Secret, error)
 }
 type CustomResourceResolver interface {
 	Yaml(ctx context.Context, obj *model.CustomResource) (string, error)
@@ -225,6 +276,10 @@ type DeploymentResolver interface {
 	ConfigMaps(ctx context.Context, obj *model.Deployment) ([]*model.ConfigMap, error)
 	Secrets(ctx context.Context, obj *model.Deployment) ([]*model.Secret, error)
 }
+type JobResolver interface {
+	Yaml(ctx context.Context, obj *model.Job) (string, error)
+	Pods(ctx context.Context, obj *model.Job, filter *model.PodFilter) ([]*model.Pod, error)
+}
 type KubeContextResolver interface {
 	Namespaces(ctx context.Context, obj *model.KubeContext, filter *model.NamespaceFilter) ([]*model.Namespace, error)
 	Namespace(ctx context.Context, obj *model.KubeContext, name string) (*model.Namespace, error)
@@ -232,12 +287,15 @@ type KubeContextResolver interface {
 	Deployment(ctx context.Context, obj *model.KubeContext, namespace string, name string) (*model.Deployment, error)
 	Pods(ctx context.Context, obj *model.KubeContext, namespace *string, filter *model.PodFilter) ([]*model.Pod, error)
 	Pod(ctx context.Context, obj *model.KubeContext, namespace string, name string) (*model.Pod, error)
+	CronJobs(ctx context.Context, obj *model.KubeContext, namespace *string, filter *model.CronJobFilter) ([]*model.CronJob, error)
+	CronJob(ctx context.Context, obj *model.KubeContext, namespace string, name string) (*model.CronJob, error)
 	APIResources(ctx context.Context, obj *model.KubeContext) ([]*model.APIResource, error)
 	CustomResources(ctx context.Context, obj *model.KubeContext, namespace *string, filter *model.CustomResourceFilter) ([]*model.CustomResource, error)
 }
 type NamespaceResolver interface {
 	Deployments(ctx context.Context, obj *model.Namespace, filter *model.DeploymentFilter) ([]*model.Deployment, error)
 	Pods(ctx context.Context, obj *model.Namespace, filter *model.PodFilter) ([]*model.Pod, error)
+	CronJobs(ctx context.Context, obj *model.Namespace, filter *model.CronJobFilter) ([]*model.CronJob, error)
 	CustomResources(ctx context.Context, obj *model.Namespace, filter *model.CustomResourceFilter) ([]*model.CustomResource, error)
 	APIResources(ctx context.Context, obj *model.Namespace) ([]*model.APIResource, error)
 }
@@ -248,6 +306,8 @@ type QueryResolver interface {
 	Contexts(ctx context.Context) ([]*model.KubeContext, error)
 	ConfigMaps(ctx context.Context, context string, namespace string) ([]*model.ConfigMap, error)
 	ConfigMap(ctx context.Context, context string, namespace string, name string) (*model.ConfigMap, error)
+	CronJobs(ctx context.Context, context string, namespace *string, filter *model.CronJobFilter) ([]*model.CronJob, error)
+	CronJob(ctx context.Context, context string, namespace string, name string) (*model.CronJob, error)
 	APIResources(ctx context.Context, context string) ([]*model.APIResource, error)
 	CustomResources(ctx context.Context, context string, namespace *string, filter *model.CustomResourceFilter) ([]*model.CustomResource, error)
 	CustomResource(ctx context.Context, context string, group string, version string, resource string, namespace *string, name string) (*model.CustomResource, error)
@@ -265,6 +325,7 @@ type SecretResolver interface {
 }
 type SubscriptionResolver interface {
 	DeploymentStatus(ctx context.Context, context string, namespace string, name string) (<-chan *model.Deployment, error)
+	CronJobStatus(ctx context.Context, context string, namespace string, name string) (<-chan *model.CronJob, error)
 	PodLogs(ctx context.Context, context string, namespace string, name string, container *string, tailLines *int) (<-chan *model.LogLine, error)
 	PodStatus(ctx context.Context, context string, namespace string, name string) (<-chan *model.Pod, error)
 }
@@ -413,6 +474,130 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Container.State(childComplexity), true
+
+	case "CronJob.active":
+		if e.complexity.CronJob.Active == nil {
+			break
+		}
+
+		return e.complexity.CronJob.Active(childComplexity), true
+
+	case "CronJob.concurrencyPolicy":
+		if e.complexity.CronJob.ConcurrencyPolicy == nil {
+			break
+		}
+
+		return e.complexity.CronJob.ConcurrencyPolicy(childComplexity), true
+
+	case "CronJob.configMaps":
+		if e.complexity.CronJob.ConfigMaps == nil {
+			break
+		}
+
+		return e.complexity.CronJob.ConfigMaps(childComplexity), true
+
+	case "CronJob.context":
+		if e.complexity.CronJob.Context == nil {
+			break
+		}
+
+		return e.complexity.CronJob.Context(childComplexity), true
+
+	case "CronJob.jobs":
+		if e.complexity.CronJob.Jobs == nil {
+			break
+		}
+
+		return e.complexity.CronJob.Jobs(childComplexity), true
+
+	case "CronJob.labels":
+		if e.complexity.CronJob.Labels == nil {
+			break
+		}
+
+		return e.complexity.CronJob.Labels(childComplexity), true
+
+	case "CronJob.lastScheduleTime":
+		if e.complexity.CronJob.LastScheduleTime == nil {
+			break
+		}
+
+		return e.complexity.CronJob.LastScheduleTime(childComplexity), true
+
+	case "CronJob.lastSuccessfulTime":
+		if e.complexity.CronJob.LastSuccessfulTime == nil {
+			break
+		}
+
+		return e.complexity.CronJob.LastSuccessfulTime(childComplexity), true
+
+	case "CronJob.name":
+		if e.complexity.CronJob.Name == nil {
+			break
+		}
+
+		return e.complexity.CronJob.Name(childComplexity), true
+
+	case "CronJob.namespace":
+		if e.complexity.CronJob.Namespace == nil {
+			break
+		}
+
+		return e.complexity.CronJob.Namespace(childComplexity), true
+
+	case "CronJob.pods":
+		if e.complexity.CronJob.Pods == nil {
+			break
+		}
+
+		args, err := ec.field_CronJob_pods_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.CronJob.Pods(childComplexity, args["filter"].(*model.PodFilter)), true
+
+	case "CronJob.schedule":
+		if e.complexity.CronJob.Schedule == nil {
+			break
+		}
+
+		return e.complexity.CronJob.Schedule(childComplexity), true
+
+	case "CronJob.secrets":
+		if e.complexity.CronJob.Secrets == nil {
+			break
+		}
+
+		return e.complexity.CronJob.Secrets(childComplexity), true
+
+	case "CronJob.status":
+		if e.complexity.CronJob.Status == nil {
+			break
+		}
+
+		return e.complexity.CronJob.Status(childComplexity), true
+
+	case "CronJob.suspend":
+		if e.complexity.CronJob.Suspend == nil {
+			break
+		}
+
+		return e.complexity.CronJob.Suspend(childComplexity), true
+
+	case "CronJob.timeZone":
+		if e.complexity.CronJob.TimeZone == nil {
+			break
+		}
+
+		return e.complexity.CronJob.TimeZone(childComplexity), true
+
+	case "CronJob.yaml":
+		if e.complexity.CronJob.Yaml == nil {
+			break
+		}
+
+		return e.complexity.CronJob.Yaml(childComplexity), true
 
 	case "CustomResource.apiVersion":
 		if e.complexity.CustomResource.APIVersion == nil {
@@ -608,6 +793,102 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Deployment.Yaml(childComplexity), true
 
+	case "Job.active":
+		if e.complexity.Job.Active == nil {
+			break
+		}
+
+		return e.complexity.Job.Active(childComplexity), true
+
+	case "Job.completionTime":
+		if e.complexity.Job.CompletionTime == nil {
+			break
+		}
+
+		return e.complexity.Job.CompletionTime(childComplexity), true
+
+	case "Job.completions":
+		if e.complexity.Job.Completions == nil {
+			break
+		}
+
+		return e.complexity.Job.Completions(childComplexity), true
+
+	case "Job.context":
+		if e.complexity.Job.Context == nil {
+			break
+		}
+
+		return e.complexity.Job.Context(childComplexity), true
+
+	case "Job.failed":
+		if e.complexity.Job.Failed == nil {
+			break
+		}
+
+		return e.complexity.Job.Failed(childComplexity), true
+
+	case "Job.labels":
+		if e.complexity.Job.Labels == nil {
+			break
+		}
+
+		return e.complexity.Job.Labels(childComplexity), true
+
+	case "Job.name":
+		if e.complexity.Job.Name == nil {
+			break
+		}
+
+		return e.complexity.Job.Name(childComplexity), true
+
+	case "Job.namespace":
+		if e.complexity.Job.Namespace == nil {
+			break
+		}
+
+		return e.complexity.Job.Namespace(childComplexity), true
+
+	case "Job.pods":
+		if e.complexity.Job.Pods == nil {
+			break
+		}
+
+		args, err := ec.field_Job_pods_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Job.Pods(childComplexity, args["filter"].(*model.PodFilter)), true
+
+	case "Job.startTime":
+		if e.complexity.Job.StartTime == nil {
+			break
+		}
+
+		return e.complexity.Job.StartTime(childComplexity), true
+
+	case "Job.status":
+		if e.complexity.Job.Status == nil {
+			break
+		}
+
+		return e.complexity.Job.Status(childComplexity), true
+
+	case "Job.succeeded":
+		if e.complexity.Job.Succeeded == nil {
+			break
+		}
+
+		return e.complexity.Job.Succeeded(childComplexity), true
+
+	case "Job.yaml":
+		if e.complexity.Job.Yaml == nil {
+			break
+		}
+
+		return e.complexity.Job.Yaml(childComplexity), true
+
 	case "KeyValue.key":
 		if e.complexity.KeyValue.Key == nil {
 			break
@@ -635,6 +916,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.KubeContext.Cluster(childComplexity), true
+
+	case "KubeContext.cronJob":
+		if e.complexity.KubeContext.CronJob == nil {
+			break
+		}
+
+		args, err := ec.field_KubeContext_cronJob_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.KubeContext.CronJob(childComplexity, args["namespace"].(string), args["name"].(string)), true
+
+	case "KubeContext.cronJobs":
+		if e.complexity.KubeContext.CronJobs == nil {
+			break
+		}
+
+		args, err := ec.field_KubeContext_cronJobs_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.KubeContext.CronJobs(childComplexity, args["namespace"].(*string), args["filter"].(*model.CronJobFilter)), true
 
 	case "KubeContext.current":
 		if e.complexity.KubeContext.Current == nil {
@@ -796,6 +1101,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Namespace.Context(childComplexity), true
+
+	case "Namespace.cronJobs":
+		if e.complexity.Namespace.CronJobs == nil {
+			break
+		}
+
+		args, err := ec.field_Namespace_cronJobs_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Namespace.CronJobs(childComplexity, args["filter"].(*model.CronJobFilter)), true
 
 	case "Namespace.customResources":
 		if e.complexity.Namespace.CustomResources == nil {
@@ -995,6 +1312,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.Contexts(childComplexity), true
 
+	case "Query.cronJob":
+		if e.complexity.Query.CronJob == nil {
+			break
+		}
+
+		args, err := ec.field_Query_cronJob_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.CronJob(childComplexity, args["context"].(string), args["namespace"].(string), args["name"].(string)), true
+
+	case "Query.cronJobs":
+		if e.complexity.Query.CronJobs == nil {
+			break
+		}
+
+		args, err := ec.field_Query_cronJobs_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.CronJobs(childComplexity, args["context"].(string), args["namespace"].(*string), args["filter"].(*model.CronJobFilter)), true
+
 	case "Query.customResource":
 		if e.complexity.Query.CustomResource == nil {
 			break
@@ -1178,6 +1519,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Secret.Yaml(childComplexity), true
 
+	case "Subscription.cronJobStatus":
+		if e.complexity.Subscription.CronJobStatus == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_cronJobStatus_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Subscription.CronJobStatus(childComplexity, args["context"].(string), args["namespace"].(string), args["name"].(string)), true
+
 	case "Subscription.deploymentStatus":
 		if e.complexity.Subscription.DeploymentStatus == nil {
 			break
@@ -1222,6 +1575,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputCronJobFilter,
 		ec.unmarshalInputCustomResourceFilter,
 		ec.unmarshalInputDeploymentFilter,
 		ec.unmarshalInputNamespaceFilter,
@@ -1324,7 +1678,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "common.graphqls" "configmap.graphqls" "context.graphqls" "customresource.graphqls" "deployment.graphqls" "namespace.graphqls" "pod.graphqls" "secret.graphqls"
+//go:embed "common.graphqls" "configmap.graphqls" "context.graphqls" "cronjob.graphqls" "customresource.graphqls" "deployment.graphqls" "namespace.graphqls" "pod.graphqls" "secret.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -1339,6 +1693,7 @@ var sources = []*ast.Source{
 	{Name: "common.graphqls", Input: sourceData("common.graphqls"), BuiltIn: false},
 	{Name: "configmap.graphqls", Input: sourceData("configmap.graphqls"), BuiltIn: false},
 	{Name: "context.graphqls", Input: sourceData("context.graphqls"), BuiltIn: false},
+	{Name: "cronjob.graphqls", Input: sourceData("cronjob.graphqls"), BuiltIn: false},
 	{Name: "customresource.graphqls", Input: sourceData("customresource.graphqls"), BuiltIn: false},
 	{Name: "deployment.graphqls", Input: sourceData("deployment.graphqls"), BuiltIn: false},
 	{Name: "namespace.graphqls", Input: sourceData("namespace.graphqls"), BuiltIn: false},
@@ -1351,6 +1706,17 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_CronJob_pods_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalOPodFilter2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐPodFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Deployment_pods_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1359,6 +1725,49 @@ func (ec *executionContext) field_Deployment_pods_args(ctx context.Context, rawA
 		return nil, err
 	}
 	args["filter"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Job_pods_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalOPodFilter2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐPodFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_KubeContext_cronJob_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "namespace", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["namespace"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_KubeContext_cronJobs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "namespace", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["namespace"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalOCronJobFilter2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJobFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg1
 	return args, nil
 }
 
@@ -1464,6 +1873,17 @@ func (ec *executionContext) field_KubeContext_pods_args(ctx context.Context, raw
 	return args, nil
 }
 
+func (ec *executionContext) field_Namespace_cronJobs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalOCronJobFilter2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJobFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Namespace_customResources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1553,6 +1973,48 @@ func (ec *executionContext) field_Query_configMaps_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["namespace"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_cronJob_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["context"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "namespace", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["namespace"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_cronJobs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["context"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "namespace", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["namespace"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalOCronJobFilter2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJobFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg2
 	return args, nil
 }
 
@@ -1763,6 +2225,27 @@ func (ec *executionContext) field_Query_secrets_args(ctx context.Context, rawArg
 		return nil, err
 	}
 	args["namespace"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_cronJobStatus_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["context"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "namespace", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["namespace"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg2
 	return args, nil
 }
 
@@ -2684,6 +3167,862 @@ func (ec *executionContext) fieldContext_Container_state(_ context.Context, fiel
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_context(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_context(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Context, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_context(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_name(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_namespace(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_namespace(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Namespace, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_namespace(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_schedule(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_schedule(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Schedule, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_schedule(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_timeZone(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_timeZone(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TimeZone, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_timeZone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_suspend(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_suspend(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Suspend, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_suspend(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_concurrencyPolicy(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_concurrencyPolicy(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ConcurrencyPolicy, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_concurrencyPolicy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_lastScheduleTime(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_lastScheduleTime(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LastScheduleTime, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_lastScheduleTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_lastSuccessfulTime(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_lastSuccessfulTime(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LastSuccessfulTime, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_lastSuccessfulTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_active(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_active(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Active, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_active(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_status(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_status(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Status, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_labels(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_labels(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Labels, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Label)
+	fc.Result = res
+	return ec.marshalNLabel2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐLabelᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_labels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_Label_key(ctx, field)
+			case "value":
+				return ec.fieldContext_Label_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Label", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_yaml(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_yaml(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.CronJob().Yaml(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_yaml(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_jobs(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_jobs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.CronJob().Jobs(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Job)
+	fc.Result = res
+	return ec.marshalNJob2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐJobᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_jobs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_Job_context(ctx, field)
+			case "name":
+				return ec.fieldContext_Job_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_Job_namespace(ctx, field)
+			case "completions":
+				return ec.fieldContext_Job_completions(ctx, field)
+			case "succeeded":
+				return ec.fieldContext_Job_succeeded(ctx, field)
+			case "failed":
+				return ec.fieldContext_Job_failed(ctx, field)
+			case "active":
+				return ec.fieldContext_Job_active(ctx, field)
+			case "status":
+				return ec.fieldContext_Job_status(ctx, field)
+			case "startTime":
+				return ec.fieldContext_Job_startTime(ctx, field)
+			case "completionTime":
+				return ec.fieldContext_Job_completionTime(ctx, field)
+			case "labels":
+				return ec.fieldContext_Job_labels(ctx, field)
+			case "yaml":
+				return ec.fieldContext_Job_yaml(ctx, field)
+			case "pods":
+				return ec.fieldContext_Job_pods(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Job", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_pods(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_pods(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.CronJob().Pods(rctx, obj, fc.Args["filter"].(*model.PodFilter))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Pod)
+	fc.Result = res
+	return ec.marshalNPod2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐPodᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_pods(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_Pod_context(ctx, field)
+			case "name":
+				return ec.fieldContext_Pod_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_Pod_namespace(ctx, field)
+			case "phase":
+				return ec.fieldContext_Pod_phase(ctx, field)
+			case "ready":
+				return ec.fieldContext_Pod_ready(ctx, field)
+			case "restarts":
+				return ec.fieldContext_Pod_restarts(ctx, field)
+			case "lastRestartAt":
+				return ec.fieldContext_Pod_lastRestartAt(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Pod_createdAt(ctx, field)
+			case "nodeName":
+				return ec.fieldContext_Pod_nodeName(ctx, field)
+			case "labels":
+				return ec.fieldContext_Pod_labels(ctx, field)
+			case "containers":
+				return ec.fieldContext_Pod_containers(ctx, field)
+			case "yaml":
+				return ec.fieldContext_Pod_yaml(ctx, field)
+			case "cpuUsage":
+				return ec.fieldContext_Pod_cpuUsage(ctx, field)
+			case "cpuLimit":
+				return ec.fieldContext_Pod_cpuLimit(ctx, field)
+			case "memoryUsage":
+				return ec.fieldContext_Pod_memoryUsage(ctx, field)
+			case "memoryLimit":
+				return ec.fieldContext_Pod_memoryLimit(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Pod", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_CronJob_pods_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_configMaps(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_configMaps(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.CronJob().ConfigMaps(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.ConfigMap)
+	fc.Result = res
+	return ec.marshalNConfigMap2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐConfigMapᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_configMaps(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_ConfigMap_context(ctx, field)
+			case "name":
+				return ec.fieldContext_ConfigMap_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_ConfigMap_namespace(ctx, field)
+			case "refs":
+				return ec.fieldContext_ConfigMap_refs(ctx, field)
+			case "missing":
+				return ec.fieldContext_ConfigMap_missing(ctx, field)
+			case "keys":
+				return ec.fieldContext_ConfigMap_keys(ctx, field)
+			case "data":
+				return ec.fieldContext_ConfigMap_data(ctx, field)
+			case "yaml":
+				return ec.fieldContext_ConfigMap_yaml(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConfigMap", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CronJob_secrets(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CronJob_secrets(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.CronJob().Secrets(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Secret)
+	fc.Result = res
+	return ec.marshalNSecret2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐSecretᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CronJob_secrets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CronJob",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_Secret_context(ctx, field)
+			case "name":
+				return ec.fieldContext_Secret_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_Secret_namespace(ctx, field)
+			case "type":
+				return ec.fieldContext_Secret_type(ctx, field)
+			case "refs":
+				return ec.fieldContext_Secret_refs(ctx, field)
+			case "missing":
+				return ec.fieldContext_Secret_missing(ctx, field)
+			case "keys":
+				return ec.fieldContext_Secret_keys(ctx, field)
+			case "data":
+				return ec.fieldContext_Secret_data(ctx, field)
+			case "yaml":
+				return ec.fieldContext_Secret_yaml(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Secret", field.Name)
 		},
 	}
 	return fc, nil
@@ -3957,6 +5296,623 @@ func (ec *executionContext) fieldContext_Deployment_secrets(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _Job_context(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_context(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Context, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_context(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_name(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_namespace(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_namespace(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Namespace, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_namespace(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_completions(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_completions(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Completions, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_completions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_succeeded(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_succeeded(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Succeeded, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_succeeded(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_failed(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_failed(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Failed, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_failed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_active(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_active(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Active, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_active(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_status(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_status(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Status, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_startTime(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_startTime(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.StartTime, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_startTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_completionTime(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_completionTime(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CompletionTime, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_completionTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_labels(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_labels(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Labels, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Label)
+	fc.Result = res
+	return ec.marshalNLabel2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐLabelᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_labels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_Label_key(ctx, field)
+			case "value":
+				return ec.fieldContext_Label_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Label", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_yaml(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_yaml(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Job().Yaml(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_yaml(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_pods(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_pods(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Job().Pods(rctx, obj, fc.Args["filter"].(*model.PodFilter))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Pod)
+	fc.Result = res
+	return ec.marshalNPod2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐPodᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_pods(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_Pod_context(ctx, field)
+			case "name":
+				return ec.fieldContext_Pod_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_Pod_namespace(ctx, field)
+			case "phase":
+				return ec.fieldContext_Pod_phase(ctx, field)
+			case "ready":
+				return ec.fieldContext_Pod_ready(ctx, field)
+			case "restarts":
+				return ec.fieldContext_Pod_restarts(ctx, field)
+			case "lastRestartAt":
+				return ec.fieldContext_Pod_lastRestartAt(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Pod_createdAt(ctx, field)
+			case "nodeName":
+				return ec.fieldContext_Pod_nodeName(ctx, field)
+			case "labels":
+				return ec.fieldContext_Pod_labels(ctx, field)
+			case "containers":
+				return ec.fieldContext_Pod_containers(ctx, field)
+			case "yaml":
+				return ec.fieldContext_Pod_yaml(ctx, field)
+			case "cpuUsage":
+				return ec.fieldContext_Pod_cpuUsage(ctx, field)
+			case "cpuLimit":
+				return ec.fieldContext_Pod_cpuLimit(ctx, field)
+			case "memoryUsage":
+				return ec.fieldContext_Pod_memoryUsage(ctx, field)
+			case "memoryLimit":
+				return ec.fieldContext_Pod_memoryLimit(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Pod", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Job_pods_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _KeyValue_key(ctx context.Context, field graphql.CollectedField, obj *model.KeyValue) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_KeyValue_key(ctx, field)
 	if err != nil {
@@ -4309,6 +6265,8 @@ func (ec *executionContext) fieldContext_KubeContext_namespaces(ctx context.Cont
 				return ec.fieldContext_Namespace_deployments(ctx, field)
 			case "pods":
 				return ec.fieldContext_Namespace_pods(ctx, field)
+			case "cronJobs":
+				return ec.fieldContext_Namespace_cronJobs(ctx, field)
 			case "customResources":
 				return ec.fieldContext_Namespace_customResources(ctx, field)
 			case "apiResources":
@@ -4375,6 +6333,8 @@ func (ec *executionContext) fieldContext_KubeContext_namespace(ctx context.Conte
 				return ec.fieldContext_Namespace_deployments(ctx, field)
 			case "pods":
 				return ec.fieldContext_Namespace_pods(ctx, field)
+			case "cronJobs":
+				return ec.fieldContext_Namespace_cronJobs(ctx, field)
 			case "customResources":
 				return ec.fieldContext_Namespace_customResources(ctx, field)
 			case "apiResources":
@@ -4729,6 +6689,185 @@ func (ec *executionContext) fieldContext_KubeContext_pod(ctx context.Context, fi
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_KubeContext_pod_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KubeContext_cronJobs(ctx context.Context, field graphql.CollectedField, obj *model.KubeContext) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_KubeContext_cronJobs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.KubeContext().CronJobs(rctx, obj, fc.Args["namespace"].(*string), fc.Args["filter"].(*model.CronJobFilter))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.CronJob)
+	fc.Result = res
+	return ec.marshalNCronJob2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJobᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_KubeContext_cronJobs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KubeContext",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_CronJob_context(ctx, field)
+			case "name":
+				return ec.fieldContext_CronJob_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_CronJob_namespace(ctx, field)
+			case "schedule":
+				return ec.fieldContext_CronJob_schedule(ctx, field)
+			case "timeZone":
+				return ec.fieldContext_CronJob_timeZone(ctx, field)
+			case "suspend":
+				return ec.fieldContext_CronJob_suspend(ctx, field)
+			case "concurrencyPolicy":
+				return ec.fieldContext_CronJob_concurrencyPolicy(ctx, field)
+			case "lastScheduleTime":
+				return ec.fieldContext_CronJob_lastScheduleTime(ctx, field)
+			case "lastSuccessfulTime":
+				return ec.fieldContext_CronJob_lastSuccessfulTime(ctx, field)
+			case "active":
+				return ec.fieldContext_CronJob_active(ctx, field)
+			case "status":
+				return ec.fieldContext_CronJob_status(ctx, field)
+			case "labels":
+				return ec.fieldContext_CronJob_labels(ctx, field)
+			case "yaml":
+				return ec.fieldContext_CronJob_yaml(ctx, field)
+			case "jobs":
+				return ec.fieldContext_CronJob_jobs(ctx, field)
+			case "pods":
+				return ec.fieldContext_CronJob_pods(ctx, field)
+			case "configMaps":
+				return ec.fieldContext_CronJob_configMaps(ctx, field)
+			case "secrets":
+				return ec.fieldContext_CronJob_secrets(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CronJob", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_KubeContext_cronJobs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KubeContext_cronJob(ctx context.Context, field graphql.CollectedField, obj *model.KubeContext) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_KubeContext_cronJob(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.KubeContext().CronJob(rctx, obj, fc.Args["namespace"].(string), fc.Args["name"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.CronJob)
+	fc.Result = res
+	return ec.marshalOCronJob2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJob(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_KubeContext_cronJob(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KubeContext",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_CronJob_context(ctx, field)
+			case "name":
+				return ec.fieldContext_CronJob_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_CronJob_namespace(ctx, field)
+			case "schedule":
+				return ec.fieldContext_CronJob_schedule(ctx, field)
+			case "timeZone":
+				return ec.fieldContext_CronJob_timeZone(ctx, field)
+			case "suspend":
+				return ec.fieldContext_CronJob_suspend(ctx, field)
+			case "concurrencyPolicy":
+				return ec.fieldContext_CronJob_concurrencyPolicy(ctx, field)
+			case "lastScheduleTime":
+				return ec.fieldContext_CronJob_lastScheduleTime(ctx, field)
+			case "lastSuccessfulTime":
+				return ec.fieldContext_CronJob_lastSuccessfulTime(ctx, field)
+			case "active":
+				return ec.fieldContext_CronJob_active(ctx, field)
+			case "status":
+				return ec.fieldContext_CronJob_status(ctx, field)
+			case "labels":
+				return ec.fieldContext_CronJob_labels(ctx, field)
+			case "yaml":
+				return ec.fieldContext_CronJob_yaml(ctx, field)
+			case "jobs":
+				return ec.fieldContext_CronJob_jobs(ctx, field)
+			case "pods":
+				return ec.fieldContext_CronJob_pods(ctx, field)
+			case "configMaps":
+				return ec.fieldContext_CronJob_configMaps(ctx, field)
+			case "secrets":
+				return ec.fieldContext_CronJob_secrets(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CronJob", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_KubeContext_cronJob_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5344,6 +7483,97 @@ func (ec *executionContext) fieldContext_Namespace_pods(ctx context.Context, fie
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Namespace_pods_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Namespace_cronJobs(ctx context.Context, field graphql.CollectedField, obj *model.Namespace) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Namespace_cronJobs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Namespace().CronJobs(rctx, obj, fc.Args["filter"].(*model.CronJobFilter))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.CronJob)
+	fc.Result = res
+	return ec.marshalNCronJob2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJobᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Namespace_cronJobs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Namespace",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_CronJob_context(ctx, field)
+			case "name":
+				return ec.fieldContext_CronJob_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_CronJob_namespace(ctx, field)
+			case "schedule":
+				return ec.fieldContext_CronJob_schedule(ctx, field)
+			case "timeZone":
+				return ec.fieldContext_CronJob_timeZone(ctx, field)
+			case "suspend":
+				return ec.fieldContext_CronJob_suspend(ctx, field)
+			case "concurrencyPolicy":
+				return ec.fieldContext_CronJob_concurrencyPolicy(ctx, field)
+			case "lastScheduleTime":
+				return ec.fieldContext_CronJob_lastScheduleTime(ctx, field)
+			case "lastSuccessfulTime":
+				return ec.fieldContext_CronJob_lastSuccessfulTime(ctx, field)
+			case "active":
+				return ec.fieldContext_CronJob_active(ctx, field)
+			case "status":
+				return ec.fieldContext_CronJob_status(ctx, field)
+			case "labels":
+				return ec.fieldContext_CronJob_labels(ctx, field)
+			case "yaml":
+				return ec.fieldContext_CronJob_yaml(ctx, field)
+			case "jobs":
+				return ec.fieldContext_CronJob_jobs(ctx, field)
+			case "pods":
+				return ec.fieldContext_CronJob_pods(ctx, field)
+			case "configMaps":
+				return ec.fieldContext_CronJob_configMaps(ctx, field)
+			case "secrets":
+				return ec.fieldContext_CronJob_secrets(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CronJob", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Namespace_cronJobs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -6253,6 +8483,10 @@ func (ec *executionContext) fieldContext_Query_contexts(_ context.Context, field
 				return ec.fieldContext_KubeContext_pods(ctx, field)
 			case "pod":
 				return ec.fieldContext_KubeContext_pod(ctx, field)
+			case "cronJobs":
+				return ec.fieldContext_KubeContext_cronJobs(ctx, field)
+			case "cronJob":
+				return ec.fieldContext_KubeContext_cronJob(ctx, field)
 			case "apiResources":
 				return ec.fieldContext_KubeContext_apiResources(ctx, field)
 			case "customResources":
@@ -6401,6 +8635,185 @@ func (ec *executionContext) fieldContext_Query_configMap(ctx context.Context, fi
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_configMap_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_cronJobs(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_cronJobs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().CronJobs(rctx, fc.Args["context"].(string), fc.Args["namespace"].(*string), fc.Args["filter"].(*model.CronJobFilter))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.CronJob)
+	fc.Result = res
+	return ec.marshalNCronJob2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJobᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_cronJobs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_CronJob_context(ctx, field)
+			case "name":
+				return ec.fieldContext_CronJob_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_CronJob_namespace(ctx, field)
+			case "schedule":
+				return ec.fieldContext_CronJob_schedule(ctx, field)
+			case "timeZone":
+				return ec.fieldContext_CronJob_timeZone(ctx, field)
+			case "suspend":
+				return ec.fieldContext_CronJob_suspend(ctx, field)
+			case "concurrencyPolicy":
+				return ec.fieldContext_CronJob_concurrencyPolicy(ctx, field)
+			case "lastScheduleTime":
+				return ec.fieldContext_CronJob_lastScheduleTime(ctx, field)
+			case "lastSuccessfulTime":
+				return ec.fieldContext_CronJob_lastSuccessfulTime(ctx, field)
+			case "active":
+				return ec.fieldContext_CronJob_active(ctx, field)
+			case "status":
+				return ec.fieldContext_CronJob_status(ctx, field)
+			case "labels":
+				return ec.fieldContext_CronJob_labels(ctx, field)
+			case "yaml":
+				return ec.fieldContext_CronJob_yaml(ctx, field)
+			case "jobs":
+				return ec.fieldContext_CronJob_jobs(ctx, field)
+			case "pods":
+				return ec.fieldContext_CronJob_pods(ctx, field)
+			case "configMaps":
+				return ec.fieldContext_CronJob_configMaps(ctx, field)
+			case "secrets":
+				return ec.fieldContext_CronJob_secrets(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CronJob", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_cronJobs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_cronJob(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_cronJob(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().CronJob(rctx, fc.Args["context"].(string), fc.Args["namespace"].(string), fc.Args["name"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.CronJob)
+	fc.Result = res
+	return ec.marshalOCronJob2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJob(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_cronJob(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_CronJob_context(ctx, field)
+			case "name":
+				return ec.fieldContext_CronJob_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_CronJob_namespace(ctx, field)
+			case "schedule":
+				return ec.fieldContext_CronJob_schedule(ctx, field)
+			case "timeZone":
+				return ec.fieldContext_CronJob_timeZone(ctx, field)
+			case "suspend":
+				return ec.fieldContext_CronJob_suspend(ctx, field)
+			case "concurrencyPolicy":
+				return ec.fieldContext_CronJob_concurrencyPolicy(ctx, field)
+			case "lastScheduleTime":
+				return ec.fieldContext_CronJob_lastScheduleTime(ctx, field)
+			case "lastSuccessfulTime":
+				return ec.fieldContext_CronJob_lastSuccessfulTime(ctx, field)
+			case "active":
+				return ec.fieldContext_CronJob_active(ctx, field)
+			case "status":
+				return ec.fieldContext_CronJob_status(ctx, field)
+			case "labels":
+				return ec.fieldContext_CronJob_labels(ctx, field)
+			case "yaml":
+				return ec.fieldContext_CronJob_yaml(ctx, field)
+			case "jobs":
+				return ec.fieldContext_CronJob_jobs(ctx, field)
+			case "pods":
+				return ec.fieldContext_CronJob_pods(ctx, field)
+			case "configMaps":
+				return ec.fieldContext_CronJob_configMaps(ctx, field)
+			case "secrets":
+				return ec.fieldContext_CronJob_secrets(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CronJob", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_cronJob_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -6851,6 +9264,8 @@ func (ec *executionContext) fieldContext_Query_namespaces(ctx context.Context, f
 				return ec.fieldContext_Namespace_deployments(ctx, field)
 			case "pods":
 				return ec.fieldContext_Namespace_pods(ctx, field)
+			case "cronJobs":
+				return ec.fieldContext_Namespace_cronJobs(ctx, field)
 			case "customResources":
 				return ec.fieldContext_Namespace_customResources(ctx, field)
 			case "apiResources":
@@ -6917,6 +9332,8 @@ func (ec *executionContext) fieldContext_Query_namespace(ctx context.Context, fi
 				return ec.fieldContext_Namespace_deployments(ctx, field)
 			case "pods":
 				return ec.fieldContext_Namespace_pods(ctx, field)
+			case "cronJobs":
+				return ec.fieldContext_Namespace_cronJobs(ctx, field)
 			case "customResources":
 				return ec.fieldContext_Namespace_customResources(ctx, field)
 			case "apiResources":
@@ -7885,6 +10302,111 @@ func (ec *executionContext) fieldContext_Subscription_deploymentStatus(ctx conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Subscription_deploymentStatus_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_cronJobStatus(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	fc, err := ec.fieldContext_Subscription_cronJobStatus(ctx, field)
+	if err != nil {
+		return nil
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().CronJobStatus(rctx, fc.Args["context"].(string), fc.Args["namespace"].(string), fc.Args["name"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func(ctx context.Context) graphql.Marshaler {
+		select {
+		case res, ok := <-resTmp.(<-chan *model.CronJob):
+			if !ok {
+				return nil
+			}
+			return graphql.WriterFunc(func(w io.Writer) {
+				w.Write([]byte{'{'})
+				graphql.MarshalString(field.Alias).MarshalGQL(w)
+				w.Write([]byte{':'})
+				ec.marshalNCronJob2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJob(ctx, field.Selections, res).MarshalGQL(w)
+				w.Write([]byte{'}'})
+			})
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
+func (ec *executionContext) fieldContext_Subscription_cronJobStatus(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "context":
+				return ec.fieldContext_CronJob_context(ctx, field)
+			case "name":
+				return ec.fieldContext_CronJob_name(ctx, field)
+			case "namespace":
+				return ec.fieldContext_CronJob_namespace(ctx, field)
+			case "schedule":
+				return ec.fieldContext_CronJob_schedule(ctx, field)
+			case "timeZone":
+				return ec.fieldContext_CronJob_timeZone(ctx, field)
+			case "suspend":
+				return ec.fieldContext_CronJob_suspend(ctx, field)
+			case "concurrencyPolicy":
+				return ec.fieldContext_CronJob_concurrencyPolicy(ctx, field)
+			case "lastScheduleTime":
+				return ec.fieldContext_CronJob_lastScheduleTime(ctx, field)
+			case "lastSuccessfulTime":
+				return ec.fieldContext_CronJob_lastSuccessfulTime(ctx, field)
+			case "active":
+				return ec.fieldContext_CronJob_active(ctx, field)
+			case "status":
+				return ec.fieldContext_CronJob_status(ctx, field)
+			case "labels":
+				return ec.fieldContext_CronJob_labels(ctx, field)
+			case "yaml":
+				return ec.fieldContext_CronJob_yaml(ctx, field)
+			case "jobs":
+				return ec.fieldContext_CronJob_jobs(ctx, field)
+			case "pods":
+				return ec.fieldContext_CronJob_pods(ctx, field)
+			case "configMaps":
+				return ec.fieldContext_CronJob_configMaps(ctx, field)
+			case "secrets":
+				return ec.fieldContext_CronJob_secrets(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CronJob", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_cronJobStatus_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -10022,6 +12544,47 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputCronJobFilter(ctx context.Context, obj any) (model.CronJobFilter, error) {
+	var it model.CronJobFilter
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"nameContains", "labelSelector", "suspended"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "nameContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameContains"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameContains = data
+		case "labelSelector":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("labelSelector"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LabelSelector = data
+		case "suspended":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("suspended"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Suspended = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCustomResourceFilter(ctx context.Context, obj any) (model.CustomResourceFilter, error) {
 	var it model.CustomResourceFilter
 	asMap := map[string]any{}
@@ -10445,6 +13008,271 @@ func (ec *executionContext) _Container(ctx context.Context, sel ast.SelectionSet
 	return out
 }
 
+var cronJobImplementors = []string{"CronJob"}
+
+func (ec *executionContext) _CronJob(ctx context.Context, sel ast.SelectionSet, obj *model.CronJob) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cronJobImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CronJob")
+		case "context":
+			out.Values[i] = ec._CronJob_context(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "name":
+			out.Values[i] = ec._CronJob_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "namespace":
+			out.Values[i] = ec._CronJob_namespace(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "schedule":
+			out.Values[i] = ec._CronJob_schedule(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "timeZone":
+			out.Values[i] = ec._CronJob_timeZone(ctx, field, obj)
+		case "suspend":
+			out.Values[i] = ec._CronJob_suspend(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "concurrencyPolicy":
+			out.Values[i] = ec._CronJob_concurrencyPolicy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "lastScheduleTime":
+			out.Values[i] = ec._CronJob_lastScheduleTime(ctx, field, obj)
+		case "lastSuccessfulTime":
+			out.Values[i] = ec._CronJob_lastSuccessfulTime(ctx, field, obj)
+		case "active":
+			out.Values[i] = ec._CronJob_active(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "status":
+			out.Values[i] = ec._CronJob_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "labels":
+			out.Values[i] = ec._CronJob_labels(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "yaml":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CronJob_yaml(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "jobs":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CronJob_jobs(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "pods":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CronJob_pods(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "configMaps":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CronJob_configMaps(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "secrets":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CronJob_secrets(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var customResourceImplementors = []string{"CustomResource"}
 
 func (ec *executionContext) _CustomResource(ctx context.Context, sel ast.SelectionSet, obj *model.CustomResource) graphql.Marshaler {
@@ -10819,6 +13647,161 @@ func (ec *executionContext) _Deployment(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
+var jobImplementors = []string{"Job"}
+
+func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj *model.Job) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, jobImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Job")
+		case "context":
+			out.Values[i] = ec._Job_context(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "name":
+			out.Values[i] = ec._Job_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "namespace":
+			out.Values[i] = ec._Job_namespace(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "completions":
+			out.Values[i] = ec._Job_completions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "succeeded":
+			out.Values[i] = ec._Job_succeeded(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "failed":
+			out.Values[i] = ec._Job_failed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "active":
+			out.Values[i] = ec._Job_active(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "status":
+			out.Values[i] = ec._Job_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "startTime":
+			out.Values[i] = ec._Job_startTime(ctx, field, obj)
+		case "completionTime":
+			out.Values[i] = ec._Job_completionTime(ctx, field, obj)
+		case "labels":
+			out.Values[i] = ec._Job_labels(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "yaml":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Job_yaml(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "pods":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Job_pods(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var keyValueImplementors = []string{"KeyValue"}
 
 func (ec *executionContext) _KeyValue(ctx context.Context, sel ast.SelectionSet, obj *model.KeyValue) graphql.Marshaler {
@@ -11103,6 +14086,75 @@ func (ec *executionContext) _KubeContext(ctx context.Context, sel ast.SelectionS
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "cronJobs":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._KubeContext_cronJobs(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "cronJob":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._KubeContext_cronJob(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "apiResources":
 			field := field
 
@@ -11352,6 +14404,42 @@ func (ec *executionContext) _Namespace(ctx context.Context, sel ast.SelectionSet
 					}
 				}()
 				res = ec._Namespace_pods(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "cronJobs":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Namespace_cronJobs(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -11670,6 +14758,47 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_configMap(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "cronJobs":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_cronJobs(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "cronJob":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_cronJob(ctx, field)
 				return res
 			}
 
@@ -12062,6 +15191,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	switch fields[0].Name {
 	case "deploymentStatus":
 		return ec._Subscription_deploymentStatus(ctx, fields[0])
+	case "cronJobStatus":
+		return ec._Subscription_cronJobStatus(ctx, fields[0])
 	case "podLogs":
 		return ec._Subscription_podLogs(ctx, fields[0])
 	case "podStatus":
@@ -12584,6 +15715,64 @@ func (ec *executionContext) marshalNContainer2ᚖgithubᚗcomᚋcdreierᚋkubeql
 	return ec._Container(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNCronJob2githubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJob(ctx context.Context, sel ast.SelectionSet, v model.CronJob) graphql.Marshaler {
+	return ec._CronJob(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCronJob2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJobᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CronJob) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCronJob2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJob(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCronJob2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJob(ctx context.Context, sel ast.SelectionSet, v *model.CronJob) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CronJob(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNCustomResource2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResourceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CustomResource) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -12710,6 +15899,60 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNJob2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐJobᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Job) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNJob2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐJob(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNJob2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐJob(ctx context.Context, sel ast.SelectionSet, v *model.Job) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Job(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNKeyValue2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐKeyValueᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.KeyValue) graphql.Marshaler {
@@ -13388,6 +16631,21 @@ func (ec *executionContext) marshalOConfigMap2ᚖgithubᚗcomᚋcdreierᚋkubeql
 		return graphql.Null
 	}
 	return ec._ConfigMap(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOCronJob2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJob(ctx context.Context, sel ast.SelectionSet, v *model.CronJob) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CronJob(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOCronJobFilter2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJobFilter(ctx context.Context, v any) (*model.CronJobFilter, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputCronJobFilter(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOCustomResource2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCustomResource(ctx context.Context, sel ast.SelectionSet, v *model.CustomResource) graphql.Marshaler {

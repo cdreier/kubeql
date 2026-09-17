@@ -9,6 +9,24 @@ function kubectl(args: string[]): string {
   return ["kubectl", ...args].map(shellQuote).join(" ");
 }
 
+export function kubectlTriggerCronJob(
+  context: string,
+  namespace: string,
+  name: string
+): string {
+  return kubectl([
+    "create",
+    "job",
+    `${name}-manual`,
+    "--from",
+    `cronjob/${name}`,
+    "-n",
+    namespace,
+    "--context",
+    context,
+  ]);
+}
+
 export function kubectlRestartDeployment(
   context: string,
   namespace: string,

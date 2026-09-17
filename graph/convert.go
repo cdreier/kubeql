@@ -243,6 +243,79 @@ func toKubeContexts(list []kube.ContextInfo) []*model.KubeContext {
 	return out
 }
 
+func toCronJob(kubeContext string, cj kube.CronJob) *model.CronJob {
+	return &model.CronJob{
+		Context:            kubeContext,
+		Name:               cj.Name,
+		Namespace:          cj.Namespace,
+		Schedule:           cj.Schedule,
+		TimeZone:           emptyToNil(cj.TimeZone),
+		Suspend:            cj.Suspend,
+		ConcurrencyPolicy:  cj.ConcurrencyPolicy,
+		LastScheduleTime:   cj.LastScheduleTime,
+		LastSuccessfulTime: cj.LastSuccessfulTime,
+		Active:             int(cj.Active),
+		Status:             cj.Status,
+		Labels:             toLabels(cj.Labels),
+	}
+}
+
+func toCronJobs(kubeContext string, list []kube.CronJob) []*model.CronJob {
+	out := make([]*model.CronJob, 0, len(list))
+	for _, cj := range list {
+		out = append(out, toCronJob(kubeContext, cj))
+	}
+	return out
+}
+
+func toJob(kubeContext string, j kube.Job) *model.Job {
+	return &model.Job{
+		Context:        kubeContext,
+		Name:           j.Name,
+		Namespace:      j.Namespace,
+		Completions:    int(j.Completions),
+		Succeeded:      int(j.Succeeded),
+		Failed:         int(j.Failed),
+		Active:         int(j.Active),
+		Status:         j.Status,
+		StartTime:      j.StartTime,
+		CompletionTime: j.CompletionTime,
+		Labels:         toLabels(j.Labels),
+	}
+}
+
+func toJobs(kubeContext string, list []kube.Job) []*model.Job {
+	out := make([]*model.Job, 0, len(list))
+	for _, j := range list {
+		out = append(out, toJob(kubeContext, j))
+	}
+	return out
+}
+
+func mapCronJobFilter(f *model.CronJobFilter) *kube.CronJobFilter {
+	if f == nil {
+		return nil
+	}
+	return &kube.CronJobFilter{
+		NameContains:  f.NameContains,
+		LabelSelector: f.LabelSelector,
+		Suspended:     f.Suspended,
+	}
+}
+
+func cronJobLiveKey(cj kube.CronJob, jobs []kube.Job, pods []kube.Pod) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s|%t|%d|%v|%v", cj.Status, cj.Suspend, cj.Active, cj.LastScheduleTime, cj.LastSuccessfulTime)
+	for _, j := range jobs {
+		fmt.Fprintf(&b, ";j:%s|%s|%d|%d|%d", j.Name, j.Status, j.Succeeded, j.Failed, j.Active)
+	}
+	for _, p := range pods {
+		fmt.Fprintf(&b, ";%s|%s|%v|%d|%s|%s",
+			p.Name, p.Phase, p.Ready, p.Restarts, derefStr(p.CPUUsage), derefStr(p.MemoryUsage))
+	}
+	return b.String()
+}
+
 func toDeployments(kubeContext string, list []kube.Deployment) []*model.Deployment {
 	out := make([]*model.Deployment, 0, len(list))
 	for _, d := range list {

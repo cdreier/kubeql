@@ -15,6 +15,11 @@ type ClusterReader interface {
 	ListDeployments(ctx context.Context, namespace string, labelSelector string) ([]Deployment, error)
 	GetDeployment(ctx context.Context, namespace, name string) (*Deployment, error)
 
+	ListCronJobs(ctx context.Context, namespace string, labelSelector string) ([]CronJob, error)
+	GetCronJob(ctx context.Context, namespace, name string) (*CronJob, error)
+	ListJobs(ctx context.Context, namespace string, labelSelector string) ([]Job, error)
+	GetJob(ctx context.Context, namespace, name string) (*Job, error)
+
 	ListPods(ctx context.Context, namespace string, labelSelector string) ([]Pod, error)
 	GetPod(ctx context.Context, namespace, name string) (*Pod, error)
 
@@ -28,8 +33,10 @@ type ClusterReader interface {
 	GetCustomResource(ctx context.Context, group, version, resource, namespace, name string) (*CustomResource, error)
 	CustomResourceYAML(ctx context.Context, group, version, resource, namespace, name string) (string, error)
 
-	// DeploymentYAML / PodYAML return the object serialized as YAML.
+	// *YAML return the object serialized as YAML.
 	DeploymentYAML(ctx context.Context, namespace, name string) (string, error)
+	CronJobYAML(ctx context.Context, namespace, name string) (string, error)
+	JobYAML(ctx context.Context, namespace, name string) (string, error)
 	PodYAML(ctx context.Context, namespace, name string) (string, error)
 	ConfigMapYAML(ctx context.Context, namespace, name string) (string, error)
 	SecretYAML(ctx context.Context, namespace, name string) (string, error)
@@ -66,6 +73,42 @@ type Deployment struct {
 	// ConfigMapRefs / SecretRefs come from the pod template (env, volumes, …).
 	ConfigMapRefs []ObjectRef
 	SecretRefs    []ObjectRef
+}
+
+// CronJob is a subset of batch/v1 CronJob.
+type CronJob struct {
+	Name               string
+	Namespace          string
+	Schedule           string
+	TimeZone           string
+	Suspend            bool
+	ConcurrencyPolicy  string
+	LastScheduleTime   *time.Time
+	LastSuccessfulTime *time.Time
+	Active             int32
+	Status             string
+	Labels             map[string]string
+	ConfigMapRefs      []ObjectRef
+	SecretRefs         []ObjectRef
+}
+
+// Job is a subset of batch/v1 Job.
+type Job struct {
+	Name           string
+	Namespace      string
+	Completions    int32
+	Succeeded      int32
+	Failed         int32
+	Active         int32
+	Status         string
+	StartTime      *time.Time
+	CompletionTime *time.Time
+	Labels         map[string]string
+	Selector       map[string]string
+	OwnerKind      string
+	OwnerName      string
+	ConfigMapRefs  []ObjectRef
+	SecretRefs     []ObjectRef
 }
 
 // ObjectRef is a named cluster object plus how a deployment uses it.

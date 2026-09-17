@@ -18,6 +18,13 @@ type DeploymentFilter struct {
 	HasPod        *PodFilter
 }
 
+// CronJobFilter filters cron jobs in the application layer.
+type CronJobFilter struct {
+	NameContains  *string
+	LabelSelector *string
+	Suspended     *bool
+}
+
 // PodFilter filters pods in the application layer.
 type PodFilter struct {
 	NameContains  *string
@@ -41,6 +48,21 @@ func MatchDeployment(d Deployment, f *DeploymentFilter) bool {
 		return true
 	}
 	if f.NameContains != nil && !containsFold(d.Name, *f.NameContains) {
+		return false
+	}
+	return true
+}
+
+// MatchCronJob returns true when cj matches name/suspend clauses.
+// LabelSelector is expected to be applied at list time.
+func MatchCronJob(cj CronJob, f *CronJobFilter) bool {
+	if f == nil {
+		return true
+	}
+	if f.NameContains != nil && !containsFold(cj.Name, *f.NameContains) {
+		return false
+	}
+	if f.Suspended != nil && cj.Suspend != *f.Suspended {
 		return false
 	}
 	return true
@@ -134,6 +156,14 @@ func MatchCustomResource(cr CustomResource, f *CustomResourceFilter) bool {
 
 // LabelSelector returns the selector string or empty.
 func (f *DeploymentFilter) LabelSelectorString() string {
+	if f == nil || f.LabelSelector == nil {
+		return ""
+	}
+	return *f.LabelSelector
+}
+
+// LabelSelectorString returns the selector string or empty.
+func (f *CronJobFilter) LabelSelectorString() string {
 	if f == nil || f.LabelSelector == nil {
 		return ""
 	}

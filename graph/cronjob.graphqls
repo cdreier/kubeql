@@ -1,0 +1,92 @@
+"""
+Filter cron jobs by name/labels and optional suspend state.
+"""
+input CronJobFilter {
+  """Case-insensitive substring match on cron job name."""
+  nameContains: String
+
+  """Kubernetes label selector (e.g. "app=backup")."""
+  labelSelector: String
+
+  """When set, only cron jobs with this spec.suspend value."""
+  suspended: Boolean
+}
+
+type CronJob {
+  """Kubeconfig context this resource was loaded from."""
+  context: String!
+  name: String!
+  namespace: String!
+  """Cron schedule, e.g. "0 * * * *"."""
+  schedule: String!
+  """IANA time zone from spec.timeZone, if set."""
+  timeZone: String
+  suspend: Boolean!
+  """Allow, Forbid, or Replace."""
+  concurrencyPolicy: String!
+  lastScheduleTime: Time
+  lastSuccessfulTime: Time
+  """Number of currently active jobs."""
+  active: Int!
+  """Human-readable summary: Suspended, Idle, or Active N."""
+  status: String!
+  labels: [Label!]!
+  """Full object as YAML."""
+  yaml: String!
+  """Jobs owned by this CronJob, newest first."""
+  jobs: [Job!]!
+  """Pods belonging to owned jobs."""
+  pods(filter: PodFilter): [Pod!]!
+  """ConfigMaps referenced by the job template."""
+  configMaps: [ConfigMap!]!
+  """Secrets referenced by the job template."""
+  secrets: [Secret!]!
+}
+
+type Job {
+  """Kubeconfig context this resource was loaded from."""
+  context: String!
+  name: String!
+  namespace: String!
+  completions: Int!
+  succeeded: Int!
+  failed: Int!
+  active: Int!
+  """Complete, Failed, Running, or Pending."""
+  status: String!
+  startTime: Time
+  completionTime: Time
+  labels: [Label!]!
+  """Full object as YAML."""
+  yaml: String!
+  """Pods owned by this job."""
+  pods(filter: PodFilter): [Pod!]!
+}
+
+extend type Namespace {
+  cronJobs(filter: CronJobFilter): [CronJob!]!
+}
+
+extend type KubeContext {
+  """List cron jobs. Namespace is optional (all namespaces when omitted)."""
+  cronJobs(namespace: String, filter: CronJobFilter): [CronJob!]!
+
+  """Get a single cron job in this context. Null if missing or cluster unreachable."""
+  cronJob(namespace: String!, name: String!): CronJob
+}
+
+extend type Query {
+  """List cron jobs. Namespace is optional (all namespaces when omitted)."""
+  cronJobs(context: String!, namespace: String, filter: CronJobFilter): [CronJob!]!
+
+  """Get a single cron job."""
+  cronJob(context: String!, namespace: String!, name: String!): CronJob
+}
+
+extend type Subscription {
+  """
+  Push updates when cron job status or owned jobs/pods change.
+  MVP: poll about every 2s (informers later).
+  """
+  cronJobStatus(context: String!, namespace: String!, name: String!): CronJob!
+}

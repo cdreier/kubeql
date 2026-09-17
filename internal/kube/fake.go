@@ -14,6 +14,8 @@ type Fake struct {
 	mu              sync.RWMutex
 	Namespaces      []Namespace
 	Deployments     []Deployment
+	CronJobs        []CronJob
+	Jobs            []Job
 	Pods            []Pod
 	ConfigMaps      []ConfigMap
 	Secrets         []Secret
@@ -74,6 +76,62 @@ func (f *Fake) GetDeployment(ctx context.Context, namespace, name string) (*Depl
 	for _, d := range f.Deployments {
 		if d.Namespace == namespace && d.Name == name {
 			cp := d
+			return &cp, nil
+		}
+	}
+	return nil, nil
+}
+
+func (f *Fake) ListCronJobs(ctx context.Context, namespace, labelSelector string) ([]CronJob, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	var out []CronJob
+	for _, cj := range f.CronJobs {
+		if namespace != "" && cj.Namespace != namespace {
+			continue
+		}
+		if labelSelector != "" && !matchLabels(cj.Labels, labelSelector) {
+			continue
+		}
+		out = append(out, cj)
+	}
+	return out, nil
+}
+
+func (f *Fake) GetCronJob(ctx context.Context, namespace, name string) (*CronJob, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	for _, cj := range f.CronJobs {
+		if cj.Namespace == namespace && cj.Name == name {
+			cp := cj
+			return &cp, nil
+		}
+	}
+	return nil, nil
+}
+
+func (f *Fake) ListJobs(ctx context.Context, namespace, labelSelector string) ([]Job, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	var out []Job
+	for _, j := range f.Jobs {
+		if namespace != "" && j.Namespace != namespace {
+			continue
+		}
+		if labelSelector != "" && !matchLabels(j.Labels, labelSelector) {
+			continue
+		}
+		out = append(out, j)
+	}
+	return out, nil
+}
+
+func (f *Fake) GetJob(ctx context.Context, namespace, name string) (*Job, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	for _, j := range f.Jobs {
+		if j.Namespace == namespace && j.Name == name {
+			cp := j
 			return &cp, nil
 		}
 	}
@@ -186,6 +244,26 @@ func (f *Fake) DeploymentYAML(ctx context.Context, namespace, name string) (stri
 		return y, nil
 	}
 	return fmt.Sprintf("apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: %s\n  namespace: %s\n", name, namespace), nil
+}
+
+func (f *Fake) CronJobYAML(ctx context.Context, namespace, name string) (string, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	key := "cronjob/" + namespace + "/" + name
+	if y, ok := f.YAML[key]; ok {
+		return y, nil
+	}
+	return fmt.Sprintf("apiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: %s\n  namespace: %s\n", name, namespace), nil
+}
+
+func (f *Fake) JobYAML(ctx context.Context, namespace, name string) (string, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	key := "job/" + namespace + "/" + name
+	if y, ok := f.YAML[key]; ok {
+		return y, nil
+	}
+	return fmt.Sprintf("apiVersion: batch/v1\nkind: Job\nmetadata:\n  name: %s\n  namespace: %s\n", name, namespace), nil
 }
 
 func (f *Fake) PodYAML(ctx context.Context, namespace, name string) (string, error) {

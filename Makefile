@@ -9,6 +9,7 @@ generate: generate-web
 # Merge GraphQL schema files and regenerate the gqty client.
 generate-web:
 	@cat graph/common.graphqls graph/context.graphqls graph/deployment.graphqls \
+		graph/cronjob.graphqls \
 		graph/namespace.graphqls graph/pod.graphqls \
 		graph/configmap.graphqls graph/secret.graphqls \
 		graph/customresource.graphqls > web/schema.graphql

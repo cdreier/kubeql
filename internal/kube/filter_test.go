@@ -37,6 +37,26 @@ func TestMatchDeployment(t *testing.T) {
 	}
 }
 
+func TestMatchCronJob(t *testing.T) {
+	cj := CronJob{Name: "nightly-backup", Suspend: true}
+	needle := "backup"
+	if !MatchCronJob(cj, &CronJobFilter{NameContains: &needle}) {
+		t.Fatal("expected substring match")
+	}
+	other := "hourly"
+	if MatchCronJob(cj, &CronJobFilter{NameContains: &other}) {
+		t.Fatal("unexpected match")
+	}
+	suspended := true
+	if !MatchCronJob(cj, &CronJobFilter{Suspended: &suspended}) {
+		t.Fatal("expected suspended match")
+	}
+	running := false
+	if MatchCronJob(cj, &CronJobFilter{Suspended: &running}) {
+		t.Fatal("unexpected running match")
+	}
+}
+
 func TestSelectorToString(t *testing.T) {
 	s := SelectorToString(map[string]string{"app": "api"})
 	if s != "app=api" {

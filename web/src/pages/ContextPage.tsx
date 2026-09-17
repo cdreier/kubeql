@@ -5,8 +5,9 @@ import { CustomResourceList } from "../components/CustomResourceList";
 import { FavoriteStar } from "../components/FavoriteStar";
 import { ResourceCell } from "../components/ResourceCell";
 import { useFavoriteDeployments } from "../hooks/useFavoriteDeployments";
+import { formatAbsolute, formatAge } from "../lib/age";
 import { readDeploymentSummary } from "../lib/deploymentSummary";
-import { readyClass } from "../lib/status";
+import { cronJobStatusClass, readyClass } from "../lib/status";
 import "./ContextPage.css";
 import "./DeploymentPage.css";
 
@@ -53,6 +54,25 @@ export function ContextPage() {
     })
     .filter((d): d is NonNullable<typeof d> => d != null);
 
+  const cronJobs = ns
+    .cronJobs()
+    .map((cj) => {
+      const name = cj.name;
+      const namespace = cj.namespace ?? nsName;
+      if (!name || !namespace) return null;
+      return {
+        name,
+        namespace,
+        schedule: cj.schedule ?? "",
+        timeZone: cj.timeZone ?? null,
+        lastScheduleTime: cj.lastScheduleTime ?? null,
+        lastSuccessfulTime: cj.lastSuccessfulTime ?? null,
+        active: cj.active ?? 0,
+        status: cj.status ?? "",
+      };
+    })
+    .filter((cj): cj is NonNullable<typeof cj> => cj != null);
+
   const sortedDeployments = useMemo(() => {
     return [...deployments].sort((a, b) => {
       const aFav = isFavorite({
@@ -75,7 +95,7 @@ export function ContextPage() {
 
   const allDeployments = sortedDeployments;
 
-  if (nsLoadedName || allDeployments.length > 0) {
+  if (nsLoadedName || allDeployments.length > 0 || cronJobs.length > 0) {
     loadedRef.current = true;
   }
 
@@ -283,6 +303,72 @@ export function ContextPage() {
               : "No deployments in this namespace."}
           </p>
         )}
+
+        <section className="ns-block">
+          <h2 className="ns-title">CronJobs</h2>
+          {cronJobs.length === 0 ? (
+            <p className="muted ns-empty">
+              No cron jobs in this namespace.
+            </p>
+          ) : (
+            <div className="dep-table-wrap">
+              <table className="dep-table">
+                <thead>
+                  <tr>
+                    <th>CronJob</th>
+                    <th>Schedule</th>
+                    <th>Last schedule</th>
+                    <th>Last success</th>
+                    <th>Status</th>
+                    <th>Active</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cronJobs.map((cj) => (
+                    <tr key={`${cj.namespace}/${cj.name}`}>
+                      <td className="dep-name">
+                        <Link
+                          to={`/c/${encodeURIComponent(contextName)}/n/${encodeURIComponent(nsName)}/cj/${encodeURIComponent(cj.name)}`}
+                          className="dep-link"
+                        >
+                          {cj.name}
+                        </Link>
+                      </td>
+                      <td>
+                        <span className="sched" title={cj.timeZone ?? undefined}>
+                          {cj.schedule || "—"}
+                          {cj.timeZone ? (
+                            <span className="muted"> {cj.timeZone}</span>
+                          ) : null}
+                        </span>
+                      </td>
+                      <td
+                        className="num age-cell"
+                        title={formatAbsolute(cj.lastScheduleTime)}
+                      >
+                        {formatAge(cj.lastScheduleTime)}
+                      </td>
+                      <td
+                        className="num age-cell"
+                        title={formatAbsolute(cj.lastSuccessfulTime)}
+                      >
+                        {formatAge(cj.lastSuccessfulTime)}
+                      </td>
+                      <td>
+                        <span
+                          className={`ready-pill ${cronJobStatusClass(cj.status)}`}
+                        >
+                          {cj.status || "—"}
+                        </span>
+                      </td>
+                      <td className="num">{cj.active}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
 
       <details

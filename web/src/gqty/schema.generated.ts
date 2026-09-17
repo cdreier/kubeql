@@ -35,6 +35,16 @@ export interface Scalars {
   Time: { input: string; output: string };
 }
 
+/** Filter cron jobs by name/labels and optional suspend state. */
+export interface CronJobFilter {
+  /** Kubernetes label selector (e.g. "app=backup"). */
+  labelSelector?: InputMaybe<Scalars["String"]["input"]>;
+  /** Case-insensitive substring match on cron job name. */
+  nameContains?: InputMaybe<Scalars["String"]["input"]>;
+  /** When set, only cron jobs with this spec.suspend value. */
+  suspended?: InputMaybe<Scalars["Boolean"]["input"]>;
+}
+
 export interface CustomResourceFilter {
   group?: InputMaybe<Scalars["String"]["input"]>;
   kind?: InputMaybe<Scalars["String"]["input"]>;
@@ -115,6 +125,31 @@ export const generatedSchema = {
     restartCount: { __type: "Int!" },
     state: { __type: "String!" },
   },
+  CronJob: {
+    __typename: { __type: "String!" },
+    active: { __type: "Int!" },
+    concurrencyPolicy: { __type: "String!" },
+    configMaps: { __type: "[ConfigMap!]!" },
+    context: { __type: "String!" },
+    jobs: { __type: "[Job!]!" },
+    labels: { __type: "[Label!]!" },
+    lastScheduleTime: { __type: "Time" },
+    lastSuccessfulTime: { __type: "Time" },
+    name: { __type: "String!" },
+    namespace: { __type: "String!" },
+    pods: { __type: "[Pod!]!", __args: { filter: "PodFilter" } },
+    schedule: { __type: "String!" },
+    secrets: { __type: "[Secret!]!" },
+    status: { __type: "String!" },
+    suspend: { __type: "Boolean!" },
+    timeZone: { __type: "String" },
+    yaml: { __type: "String!" },
+  },
+  CronJobFilter: {
+    labelSelector: { __type: "String" },
+    nameContains: { __type: "String" },
+    suspended: { __type: "Boolean" },
+  },
   CustomResource: {
     __typename: { __type: "String!" },
     apiVersion: { __type: "String!" },
@@ -161,6 +196,22 @@ export const generatedSchema = {
     labelSelector: { __type: "String" },
     nameContains: { __type: "String" },
   },
+  Job: {
+    __typename: { __type: "String!" },
+    active: { __type: "Int!" },
+    completionTime: { __type: "Time" },
+    completions: { __type: "Int!" },
+    context: { __type: "String!" },
+    failed: { __type: "Int!" },
+    labels: { __type: "[Label!]!" },
+    name: { __type: "String!" },
+    namespace: { __type: "String!" },
+    pods: { __type: "[Pod!]!", __args: { filter: "PodFilter" } },
+    startTime: { __type: "Time" },
+    status: { __type: "String!" },
+    succeeded: { __type: "Int!" },
+    yaml: { __type: "String!" },
+  },
   KeyValue: {
     __typename: { __type: "String!" },
     key: { __type: "String!" },
@@ -170,6 +221,14 @@ export const generatedSchema = {
     __typename: { __type: "String!" },
     apiResources: { __type: "[ApiResource!]!" },
     cluster: { __type: "String!" },
+    cronJob: {
+      __type: "CronJob",
+      __args: { name: "String!", namespace: "String!" },
+    },
+    cronJobs: {
+      __type: "[CronJob!]!",
+      __args: { filter: "CronJobFilter", namespace: "String" },
+    },
     current: { __type: "Boolean!" },
     customResources: {
       __type: "[CustomResource!]!",
@@ -212,6 +271,7 @@ export const generatedSchema = {
     __typename: { __type: "String!" },
     apiResources: { __type: "[ApiResource!]!" },
     context: { __type: "String!" },
+    cronJobs: { __type: "[CronJob!]!", __args: { filter: "CronJobFilter" } },
     customResources: {
       __type: "[CustomResource!]!",
       __args: { filter: "CustomResourceFilter" },
@@ -278,6 +338,18 @@ export const generatedSchema = {
       __args: { context: "String!", namespace: "String!" },
     },
     contexts: { __type: "[KubeContext!]!" },
+    cronJob: {
+      __type: "CronJob",
+      __args: { context: "String!", name: "String!", namespace: "String!" },
+    },
+    cronJobs: {
+      __type: "[CronJob!]!",
+      __args: {
+        context: "String!",
+        filter: "CronJobFilter",
+        namespace: "String",
+      },
+    },
     customResource: {
       __type: "CustomResource",
       __args: {
@@ -336,6 +408,10 @@ export const generatedSchema = {
   },
   subscription: {
     __typename: { __type: "String!" },
+    cronJobStatus: {
+      __type: "CronJob!",
+      __args: { context: "String!", name: "String!", namespace: "String!" },
+    },
     deploymentStatus: {
       __type: "Deployment!",
       __args: { context: "String!", name: "String!", namespace: "String!" },
@@ -406,6 +482,60 @@ export interface Container {
    * e.g. Running, Waiting, Terminated.
    */
   state?: Scalars["String"]["output"];
+}
+
+export interface CronJob {
+  __typename?: "CronJob";
+  /**
+   * Number of currently active jobs.
+   */
+  active?: Scalars["Int"]["output"];
+  /**
+   * Allow, Forbid, or Replace.
+   */
+  concurrencyPolicy?: Scalars["String"]["output"];
+  /**
+   * ConfigMaps referenced by the job template.
+   */
+  configMaps: Array<ConfigMap>;
+  /**
+   * Kubeconfig context this resource was loaded from.
+   */
+  context?: Scalars["String"]["output"];
+  /**
+   * Jobs owned by this CronJob, newest first.
+   */
+  jobs: Array<Job>;
+  labels: Array<Label>;
+  lastScheduleTime?: Maybe<Scalars["Time"]["output"]>;
+  lastSuccessfulTime?: Maybe<Scalars["Time"]["output"]>;
+  name?: Scalars["String"]["output"];
+  namespace?: Scalars["String"]["output"];
+  /**
+   * Pods belonging to owned jobs.
+   */
+  pods: (args?: { filter?: Maybe<PodFilter> }) => Array<Pod>;
+  /**
+   * Cron schedule, e.g. "0 * * * *".
+   */
+  schedule?: Scalars["String"]["output"];
+  /**
+   * Secrets referenced by the job template.
+   */
+  secrets: Array<Secret>;
+  /**
+   * Human-readable summary: Suspended, Idle, or Active N.
+   */
+  status?: Scalars["String"]["output"];
+  suspend?: Scalars["Boolean"]["output"];
+  /**
+   * IANA time zone from spec.timeZone, if set.
+   */
+  timeZone?: Maybe<Scalars["String"]["output"]>;
+  /**
+   * Full object as YAML.
+   */
+  yaml?: Scalars["String"]["output"];
 }
 
 /**
@@ -479,6 +609,35 @@ export interface Deployment {
   yaml?: Scalars["String"]["output"];
 }
 
+export interface Job {
+  __typename?: "Job";
+  active?: Scalars["Int"]["output"];
+  completionTime?: Maybe<Scalars["Time"]["output"]>;
+  completions?: Scalars["Int"]["output"];
+  /**
+   * Kubeconfig context this resource was loaded from.
+   */
+  context?: Scalars["String"]["output"];
+  failed?: Scalars["Int"]["output"];
+  labels: Array<Label>;
+  name?: Scalars["String"]["output"];
+  namespace?: Scalars["String"]["output"];
+  /**
+   * Pods owned by this job.
+   */
+  pods: (args?: { filter?: Maybe<PodFilter> }) => Array<Pod>;
+  startTime?: Maybe<Scalars["Time"]["output"]>;
+  /**
+   * Complete, Failed, Running, or Pending.
+   */
+  status?: Scalars["String"]["output"];
+  succeeded?: Scalars["Int"]["output"];
+  /**
+   * Full object as YAML.
+   */
+  yaml?: Scalars["String"]["output"];
+}
+
 /**
  * A string map entry (ConfigMap/Secret data, etc.).
  */
@@ -499,6 +658,20 @@ export interface KubeContext {
    */
   apiResources: Array<ApiResource>;
   cluster?: Scalars["String"]["output"];
+  /**
+   * Get a single cron job in this context. Null if missing or cluster unreachable.
+   */
+  cronJob: (args: {
+    name: Scalars["String"]["input"];
+    namespace: Scalars["String"]["input"];
+  }) => Maybe<CronJob>;
+  /**
+   * List cron jobs. Namespace is optional (all namespaces when omitted).
+   */
+  cronJobs: (args?: {
+    filter?: Maybe<CronJobFilter>;
+    namespace?: Maybe<Scalars["String"]["input"]>;
+  }) => Array<CronJob>;
   /**
    * True if this is the CLI/--context or kubeconfig current-context default.
    */
@@ -580,6 +753,7 @@ export interface Namespace {
    * Kubeconfig context this resource was loaded from.
    */
   context?: Scalars["String"]["output"];
+  cronJobs: (args?: { filter?: Maybe<CronJobFilter> }) => Array<CronJob>;
   /**
    * Namespaced custom resources in this namespace (CRDs / extension APIs).
    */
@@ -698,6 +872,22 @@ export interface Query {
    */
   contexts: Array<KubeContext>;
   /**
+   * Get a single cron job.
+   */
+  cronJob: (args: {
+    context: Scalars["String"]["input"];
+    name: Scalars["String"]["input"];
+    namespace: Scalars["String"]["input"];
+  }) => Maybe<CronJob>;
+  /**
+   * List cron jobs. Namespace is optional (all namespaces when omitted).
+   */
+  cronJobs: (args: {
+    context: Scalars["String"]["input"];
+    filter?: Maybe<CronJobFilter>;
+    namespace?: Maybe<Scalars["String"]["input"]>;
+  }) => Array<CronJob>;
+  /**
    * Get a single custom resource. Null if missing.
    */
   customResource: (args: {
@@ -781,6 +971,15 @@ export interface Query {
 
 export interface Subscription {
   __typename?: "Subscription";
+  /**
+   * Push updates when cron job status or owned jobs/pods change.
+   * MVP: poll about every 2s (informers later).
+   */
+  cronJobStatus: (args: {
+    context: Scalars["String"]["input"];
+    name: Scalars["String"]["input"];
+    namespace: Scalars["String"]["input"];
+  }) => CronJob;
   /**
    * Push updates when deployment status or owned-pod metrics change.
    * MVP: poll about every 2s (informers later).

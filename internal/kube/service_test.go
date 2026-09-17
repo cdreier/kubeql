@@ -139,6 +139,68 @@ func TestConfigMapsForDeployment_MissingAndFound(t *testing.T) {
 	}
 }
 
+func TestListCronJobs_AndJobs(t *testing.T) {
+	f := sampleCluster()
+	f.CronJobs = []CronJob{
+		{Name: "backup", Namespace: "prod", Schedule: "0 * * * *", Status: "Idle"},
+		{Name: "nightly", Namespace: "default", Schedule: "0 2 * * *", Suspend: true, Status: "Suspended"},
+	}
+	f.Jobs = []Job{
+		{
+			Name: "backup-1", Namespace: "prod", Status: "Complete", Succeeded: 1, Completions: 1,
+			OwnerKind: "CronJob", OwnerName: "backup",
+			Selector: map[string]string{"job-name": "backup-1"},
+		},
+		{
+			Name: "other-1", Namespace: "prod", Status: "Complete",
+			OwnerKind: "CronJob", OwnerName: "other",
+			Selector: map[string]string{"job-name": "other-1"},
+		},
+	}
+	f.Pods = append(f.Pods, Pod{
+		Name: "backup-1-pod", Namespace: "prod", Phase: "Succeeded", Ready: false,
+		Labels: map[string]string{"job-name": "backup-1"},
+	})
+	svc := NewService(f)
+
+	list, err := svc.ListCronJobs(context.Background(), testCtx, "prod", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].Name != "backup" {
+		t.Fatalf("expected backup in prod, got %#v", list)
+	}
+
+	suspended := true
+	list, err = svc.ListCronJobs(context.Background(), testCtx, "", &CronJobFilter{Suspended: &suspended})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].Name != "nightly" {
+		t.Fatalf("expected nightly suspended, got %#v", list)
+	}
+
+	cj, err := svc.GetCronJob(context.Background(), testCtx, "prod", "backup")
+	if err != nil || cj == nil {
+		t.Fatalf("cronjob: %v %#v", err, cj)
+	}
+	jobs, err := svc.JobsForCronJob(context.Background(), testCtx, *cj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 || jobs[0].Name != "backup-1" {
+		t.Fatalf("expected backup-1, got %#v", jobs)
+	}
+
+	pods, err := svc.PodsForCronJob(context.Background(), testCtx, *cj, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pods) != 1 || pods[0].Name != "backup-1-pod" {
+		t.Fatalf("expected backup-1-pod, got %#v", pods)
+	}
+}
+
 func TestListPods_NameContains(t *testing.T) {
 	svc := NewService(sampleCluster())
 	needle := "web"
