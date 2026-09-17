@@ -9,6 +9,7 @@ import { LogViewer } from "../components/LogViewer";
 import { ResourceCell } from "../components/ResourceCell";
 import { useQuery, useSubscription } from "../gqty";
 import {
+  kubectlDeleteJob,
   kubectlExec,
   kubectlKillPod,
   kubectlTriggerCronJob,
@@ -359,7 +360,21 @@ export function CronJobPage() {
               <tbody>
                 {jobs.map((j) => (
                   <tr key={j.name}>
-                    <td className="dep-name">{j.name}</td>
+                    <td className="dep-name">
+                      <div className="pod-name-row">
+                        {j.name}
+                        <CopyKubectlButton
+                          compact
+                          tone="danger"
+                          label="delete"
+                          command={kubectlDeleteJob(
+                            contextName,
+                            nsName,
+                            j.name
+                          )}
+                        />
+                      </div>
+                    </td>
                     <td>
                       <span className={`ready-pill ${jobStatusClass(j.status)}`}>
                         {j.status ?? "—"}

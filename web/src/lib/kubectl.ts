@@ -115,3 +115,20 @@ export function kubectlKillPod(
     "--grace-period=0",
   ]);
 }
+
+/** Delete a job. */
+export function kubectlDeleteJob(
+  context: string,
+  namespace: string,
+  name: string
+): string {
+  return kubectl([
+    "delete",
+    "job",
+    name,
+    "-n",
+    namespace,
+    "--context",
+    context,
+  ]);
+}
