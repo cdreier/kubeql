@@ -14,9 +14,9 @@ import (
 	"github.com/cdreier/kubeql/graph"
 	"github.com/cdreier/kubeql/internal/kube"
 	"github.com/cdreier/kubeql/web"
+	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/gorilla/websocket"
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
@@ -33,8 +33,9 @@ func NewRouter(svc *kube.Service) http.Handler {
 	srv := handler.New(es)
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
-		Upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool { return true },
+		// Local tool: same-origin Vite proxy plus localhost playground.
+		Implementation: transport.CoderWebsocketImplementation{
+			AcceptOptions: websocket.AcceptOptions{InsecureSkipVerify: true},
 		},
 	})
 	srv.AddTransport(transport.Options{})

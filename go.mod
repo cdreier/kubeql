@@ -4,8 +4,8 @@ go 1.26.0
 
 require (
 	github.com/99designs/gqlgen v0.17.95
+	github.com/coder/websocket v1.8.15
 	github.com/go-chi/chi/v5 v5.2.2
-	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/vektah/gqlparser/v2 v2.5.58
 	k8s.io/api v0.33.3
@@ -17,7 +17,6 @@ require (
 
 require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
-	github.com/coder/websocket v1.8.15 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect

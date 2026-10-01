@@ -35,29 +35,33 @@ func toPod(kubeContext string, p kube.Pod) *model.Pod {
 	containers := make([]*model.Container, 0, len(p.Containers))
 	for _, c := range p.Containers {
 		containers = append(containers, &model.Container{
-			Name:         c.Name,
-			Image:        c.Image,
-			Ready:        c.Ready,
-			RestartCount: int(c.RestartCount),
-			State:        c.State,
+			Name:           c.Name,
+			Image:          c.Image,
+			Ready:          c.Ready,
+			RestartCount:   int(c.RestartCount),
+			State:          c.State,
+			Reason:         emptyToNil(c.Reason),
+			Message:        emptyToNil(c.Message),
+			LastTerminated: toContainerTermination(c.LastTerminated),
 		})
 	}
 	return &model.Pod{
-		Context:       kubeContext,
-		Name:          p.Name,
-		Namespace:     p.Namespace,
-		Phase:         p.Phase,
-		Ready:         p.Ready,
-		Restarts:      int(p.Restarts),
-		LastRestartAt: p.LastRestartAt,
-		CreatedAt:     p.CreatedAt,
-		NodeName:      nodeName,
-		Labels:        toLabels(p.Labels),
-		Containers:    containers,
-		CPUUsage:      p.CPUUsage,
-		CPULimit:      p.CPULimit,
-		MemoryUsage:   p.MemoryUsage,
-		MemoryLimit:   p.MemoryLimit,
+		Context:           kubeContext,
+		Name:              p.Name,
+		Namespace:         p.Namespace,
+		Phase:             p.Phase,
+		Ready:             p.Ready,
+		Restarts:          int(p.Restarts),
+		LastRestartAt:     p.LastRestartAt,
+		LastRestartReason: emptyToNil(p.LastRestartReason),
+		CreatedAt:         p.CreatedAt,
+		NodeName:          nodeName,
+		Labels:            toLabels(p.Labels),
+		Containers:        containers,
+		CPUUsage:          p.CPUUsage,
+		CPULimit:          p.CPULimit,
+		MemoryUsage:       p.MemoryUsage,
+		MemoryLimit:       p.MemoryLimit,
 	}
 }
 
@@ -218,6 +222,46 @@ func emptyToNil(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+func toContainerTermination(t *kube.ContainerTermination) *model.ContainerTermination {
+	if t == nil {
+		return nil
+	}
+	var signal *int
+	if t.Signal != 0 {
+		n := int(t.Signal)
+		signal = &n
+	}
+	return &model.ContainerTermination{
+		Reason:     emptyToNil(t.Reason),
+		ExitCode:   int(t.ExitCode),
+		Signal:     signal,
+		Message:    emptyToNil(t.Message),
+		StartedAt:  t.StartedAt,
+		FinishedAt: t.FinishedAt,
+	}
+}
+
+func toEvent(e kube.Event) *model.Event {
+	return &model.Event{
+		Name:      e.Name,
+		EventType: e.Type,
+		Reason:    e.Reason,
+		Message:   e.Message,
+		Count:     int(e.Count),
+		FirstSeen: e.FirstSeen,
+		LastSeen:  e.LastSeen,
+		Source:    emptyToNil(e.Source),
+	}
+}
+
+func toEvents(list []kube.Event) []*model.Event {
+	out := make([]*model.Event, 0, len(list))
+	for _, e := range list {
+		out = append(out, toEvent(e))
+	}
+	return out
 }
 
 func toKubeContext(c kube.ContextInfo) *model.KubeContext {

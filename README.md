@@ -109,7 +109,7 @@ query {
     pods(filter: { phase: "Running" }) {
       name
       ready
-      containers { name state restartCount }
+      containers { name state reason restartCount lastTerminated { reason exitCode } }
     }
   }
 }
@@ -176,6 +176,7 @@ make snapshot
 - **Read-only**: no mutations.
 - **Multi-context**: nest under `contexts { ... }` or pass `context:` on root fields/subscriptions.
 - **Metrics**: `cpuUsage` / `memoryUsage` come from metrics-server (null if missing). `cpuLimit` / `memoryLimit` are the summed container limits from the pod spec.
+- **Restarts**: `lastRestartReason` / `Container.lastTerminated` come from `containerStatuses.lastState.terminated` (OOMKilled, Error, …). `Pod.events` is a separate API call for kubelet BackOff/Killing/Unhealthy events — omit it from list queries and live subscriptions. Events are ephemeral.
 - **Status subscriptions** (`deploymentStatus`, `podStatus`) poll every 2s and include resource usage; can be swapped for informers later.
 
 ## License
