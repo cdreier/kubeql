@@ -102,3 +102,5 @@ models:
     fields:
       yaml:
         resolver: true
+      events:
+        resolver: true

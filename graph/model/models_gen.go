@@ -36,8 +36,25 @@ type Container struct {
 	Image        string `json:"image"`
 	Ready        bool   `json:"ready"`
 	RestartCount int    `json:"restartCount"`
-	// e.g. Running, Waiting, Terminated.
+	// Running, Waiting, Terminated, or Unknown.
 	State string `json:"state"`
+	// Waiting/Terminated reason (CrashLoopBackOff, OOMKilled, Error, …).
+	Reason  *string `json:"reason,omitempty"`
+	Message *string `json:"message,omitempty"`
+	// Previous container run after a restart. Null when it never restarted.
+	LastTerminated *ContainerTermination `json:"lastTerminated,omitempty"`
+}
+
+// Last container termination (containerStatuses.lastState.terminated).
+// The most reliable restart reason for a container that has restarted.
+type ContainerTermination struct {
+	// e.g. OOMKilled, Error, Completed.
+	Reason     *string    `json:"reason,omitempty"`
+	ExitCode   int        `json:"exitCode"`
+	Signal     *int       `json:"signal,omitempty"`
+	Message    *string    `json:"message,omitempty"`
+	StartedAt  *time.Time `json:"startedAt,omitempty"`
+	FinishedAt *time.Time `json:"finishedAt,omitempty"`
 }
 
 type CronJob struct {
@@ -147,6 +164,21 @@ type DeploymentFilter struct {
 	HasPod *PodFilter `json:"hasPod,omitempty"`
 }
 
+// A Kubernetes Event about a pod (kubelet BackOff, Killing, Unhealthy, FailedScheduling, …).
+// Events are ephemeral and may expire from the apiserver.
+type Event struct {
+	Name string `json:"name"`
+	// Normal or Warning (Kubernetes event.type).
+	EventType string     `json:"eventType"`
+	Reason    string     `json:"reason"`
+	Message   string     `json:"message"`
+	Count     int        `json:"count"`
+	FirstSeen *time.Time `json:"firstSeen,omitempty"`
+	LastSeen  *time.Time `json:"lastSeen,omitempty"`
+	// Controller/component that emitted the event, e.g. kubelet.
+	Source *string `json:"source,omitempty"`
+}
+
 type Job struct {
 	// Kubeconfig context this resource was loaded from.
 	Context     string `json:"context"`
@@ -252,11 +284,17 @@ type Pod struct {
 	Ready         bool       `json:"ready"`
 	Restarts      int        `json:"restarts"`
 	LastRestartAt *time.Time `json:"lastRestartAt,omitempty"`
+	// Reason from the most recent container lastState.terminated (OOMKilled, Error, …).
+	LastRestartReason *string `json:"lastRestartReason,omitempty"`
 	// Pod creation time (metadata.creationTimestamp).
 	CreatedAt  *time.Time   `json:"createdAt,omitempty"`
 	NodeName   *string      `json:"nodeName,omitempty"`
 	Labels     []*Label     `json:"labels"`
 	Containers []*Container `json:"containers"`
+	// Kubernetes events involving this pod (BackOff, Killing, Unhealthy, FailedScheduling, …).
+	// Separate API call — omit from list queries and live subscriptions.
+	// Events are ephemeral and may expire from the apiserver.
+	Events []*Event `json:"events"`
 	// Full object as YAML.
 	Yaml string `json:"yaml"`
 	// Optional; requires metrics-server. Null when unavailable.

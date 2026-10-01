@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -341,6 +342,93 @@ func (c *Client) StreamPodLogs(ctx context.Context, opts LogOptions) (io.ReadClo
 	return req.Stream(ctx)
 }
 
+func (c *Client) ListPodEvents(ctx context.Context, namespace, podName string) ([]Event, error) {
+	list, err := c.cs.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod,involvedObject.namespace=%s", podName, namespace),
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Event, 0, len(list.Items))
+	for i := range list.Items {
+		out = append(out, mapEvent(&list.Items[i]))
+	}
+	sort.Slice(out, func(i, j int) bool {
+		ti, tj := eventSortTime(out[i]), eventSortTime(out[j])
+		if !ti.Equal(tj) {
+			return ti.After(tj)
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out, nil
+}
+
+func mapEvent(e *corev1.Event) Event {
+	first := metaTimePtr(&e.FirstTimestamp)
+	last := metaTimePtr(&e.LastTimestamp)
+	if last == nil {
+		last = microTimePtr(e.EventTime)
+	}
+	if first == nil {
+		first = last
+	}
+	return Event{
+		Name:         e.Name,
+		Namespace:    e.Namespace,
+		InvolvedName: e.InvolvedObject.Name,
+		Type:         e.Type,
+		Reason:       e.Reason,
+		Message:      e.Message,
+		Count:        eventCount(e),
+		FirstSeen:    first,
+		LastSeen:     last,
+		Source:       eventSource(e),
+	}
+}
+
+func eventCount(e *corev1.Event) int32 {
+	if e.Series != nil && e.Series.Count > 0 {
+		return e.Series.Count
+	}
+	if e.Count > 0 {
+		return e.Count
+	}
+	return 1
+}
+
+func eventSource(e *corev1.Event) string {
+	src := e.Source.Component
+	if e.Source.Host != "" {
+		if src != "" {
+			src += "/" + e.Source.Host
+		} else {
+			src = e.Source.Host
+		}
+	}
+	if src == "" {
+		src = e.ReportingController
+	}
+	return src
+}
+
+func eventSortTime(e Event) time.Time {
+	if e.LastSeen != nil {
+		return *e.LastSeen
+	}
+	if e.FirstSeen != nil {
+		return *e.FirstSeen
+	}
+	return time.Time{}
+}
+
+func microTimePtr(t metav1.MicroTime) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+	tt := t.Time
+	return &tt
+}
+
 func mapDeployment(d *appsv1.Deployment) Deployment {
 	var replicas int32
 	if d.Spec.Replicas != nil {
@@ -482,21 +570,29 @@ func metaTimePtr(t *metav1.Time) *time.Time {
 func mapPod(p *corev1.Pod) Pod {
 	var restarts int32
 	var lastRestart *time.Time
+	var lastRestartReason string
 	containers := make([]Container, 0, len(p.Status.ContainerStatuses))
 	for _, cs := range p.Status.ContainerStatuses {
 		restarts += cs.RestartCount
-		if cs.LastTerminationState.Terminated != nil {
-			t := cs.LastTerminationState.Terminated.FinishedAt.Time
-			if lastRestart == nil || t.After(*lastRestart) {
-				lastRestart = &t
+		lastTerm := mapTerminated(cs.LastTerminationState.Terminated)
+		if lastTerm != nil {
+			if lastTerm.FinishedAt != nil && (lastRestart == nil || lastTerm.FinishedAt.After(*lastRestart)) {
+				lastRestart = lastTerm.FinishedAt
+				lastRestartReason = lastTerm.Reason
+			} else if lastRestart == nil && lastTerm.Reason != "" {
+				lastRestartReason = lastTerm.Reason
 			}
 		}
+		state, reason, message := containerStateParts(cs.State)
 		containers = append(containers, Container{
-			Name:         cs.Name,
-			Image:        cs.Image,
-			Ready:        cs.Ready,
-			RestartCount: cs.RestartCount,
-			State:        containerState(cs.State),
+			Name:           cs.Name,
+			Image:          cs.Image,
+			Ready:          cs.Ready,
+			RestartCount:   cs.RestartCount,
+			State:          state,
+			Reason:         reason,
+			Message:        message,
+			LastTerminated: lastTerm,
 		})
 	}
 	// Include containers that have no status yet (from spec).
@@ -516,18 +612,19 @@ func mapPod(p *corev1.Pod) Pod {
 		createdAt = &t
 	}
 	return Pod{
-		Name:          p.Name,
-		Namespace:     p.Namespace,
-		Phase:         string(p.Status.Phase),
-		Ready:         isPodReady(p),
-		Restarts:      restarts,
-		LastRestartAt: lastRestart,
-		CreatedAt:     createdAt,
-		NodeName:      p.Spec.NodeName,
-		Labels:        copyMap(p.Labels),
-		Containers:    containers,
-		CPULimit:      cpuLimit,
-		MemoryLimit:   memLimit,
+		Name:              p.Name,
+		Namespace:         p.Namespace,
+		Phase:             string(p.Status.Phase),
+		Ready:             isPodReady(p),
+		Restarts:          restarts,
+		LastRestartAt:     lastRestart,
+		LastRestartReason: lastRestartReason,
+		CreatedAt:         createdAt,
+		NodeName:          p.Spec.NodeName,
+		Labels:            copyMap(p.Labels),
+		Containers:        containers,
+		CPULimit:          cpuLimit,
+		MemoryLimit:       memLimit,
 	}
 }
 
@@ -540,22 +637,30 @@ func isPodReady(p *corev1.Pod) bool {
 	return false
 }
 
-func containerState(s corev1.ContainerState) string {
+func containerStateParts(s corev1.ContainerState) (state, reason, message string) {
 	switch {
 	case s.Running != nil:
-		return "Running"
+		return "Running", "", ""
 	case s.Waiting != nil:
-		if s.Waiting.Reason != "" {
-			return "Waiting:" + s.Waiting.Reason
-		}
-		return "Waiting"
+		return "Waiting", s.Waiting.Reason, s.Waiting.Message
 	case s.Terminated != nil:
-		if s.Terminated.Reason != "" {
-			return "Terminated:" + s.Terminated.Reason
-		}
-		return "Terminated"
+		return "Terminated", s.Terminated.Reason, s.Terminated.Message
 	default:
-		return "Unknown"
+		return "Unknown", "", ""
+	}
+}
+
+func mapTerminated(t *corev1.ContainerStateTerminated) *ContainerTermination {
+	if t == nil {
+		return nil
+	}
+	return &ContainerTermination{
+		Reason:     t.Reason,
+		ExitCode:   t.ExitCode,
+		Signal:     t.Signal,
+		Message:    t.Message,
+		StartedAt:  metaTimePtr(&t.StartedAt),
+		FinishedAt: metaTimePtr(&t.FinishedAt),
 	}
 }
 

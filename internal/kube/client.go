@@ -43,6 +43,9 @@ type ClusterReader interface {
 
 	// StreamPodLogs follows container logs. Caller must close the returned reader.
 	StreamPodLogs(ctx context.Context, opts LogOptions) (io.ReadCloser, error)
+
+	// ListPodEvents returns Kubernetes events involving the named pod, newest lastSeen first.
+	ListPodEvents(ctx context.Context, namespace, podName string) ([]Event, error)
 }
 
 // LogOptions configures a log stream.
@@ -138,16 +141,17 @@ type Secret struct {
 
 // Pod is a subset of core/v1 Pod used by the GraphQL layer.
 type Pod struct {
-	Name          string
-	Namespace     string
-	Phase         string
-	Ready         bool
-	Restarts      int32
-	LastRestartAt *time.Time
-	CreatedAt     *time.Time
-	NodeName      string
-	Labels        map[string]string
-	Containers    []Container
+	Name              string
+	Namespace         string
+	Phase             string
+	Ready             bool
+	Restarts          int32
+	LastRestartAt     *time.Time
+	LastRestartReason string
+	CreatedAt         *time.Time
+	NodeName          string
+	Labels            map[string]string
+	Containers        []Container
 	// Optional metrics (populated when metrics-server is available).
 	CPUUsage    *string
 	MemoryUsage *string
@@ -158,11 +162,39 @@ type Pod struct {
 
 // Container is a container status within a pod.
 type Container struct {
+	Name           string
+	Image          string
+	Ready          bool
+	RestartCount   int32
+	State          string // Running, Waiting, Terminated, Unknown
+	Reason         string // Waiting/Terminated reason (CrashLoopBackOff, OOMKilled, …)
+	Message        string
+	LastTerminated *ContainerTermination
+}
+
+// ContainerTermination is lastState.terminated — the previous container run after a restart.
+type ContainerTermination struct {
+	Reason     string
+	ExitCode   int32
+	Signal     int32
+	Message    string
+	StartedAt  *time.Time
+	FinishedAt *time.Time
+}
+
+// Event is a Kubernetes event involving a pod (kubelet BackOff, Killing, Unhealthy, …).
+// Events are ephemeral and may expire from the apiserver.
+type Event struct {
 	Name         string
-	Image        string
-	Ready        bool
-	RestartCount int32
-	State        string
+	Namespace    string
+	InvolvedName string
+	Type         string // Normal or Warning
+	Reason       string
+	Message      string
+	Count        int32
+	FirstSeen    *time.Time
+	LastSeen     *time.Time
+	Source       string
 }
 
 // APIResource is a discovered extension API (typically a CRD), not a built-in kind.

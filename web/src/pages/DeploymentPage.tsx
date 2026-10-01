@@ -20,6 +20,12 @@ import type { Deployment } from "../gqty";
 import { formatAbsolute, formatAge } from "../lib/age";
 import { sumCpu, sumMem } from "../lib/resource";
 import {
+  containerDisplay,
+  containerTitle,
+  restartTitle,
+  type ContainerView,
+} from "../lib/container";
+import {
   containerStateClass,
   phaseClass,
   readyClass,
@@ -33,19 +39,25 @@ type PodView = {
   ready?: boolean | null;
   restarts?: number | null;
   lastRestartAt?: string | null;
+  lastRestartReason?: string | null;
   createdAt?: string | null;
   nodeName?: string | null;
   cpuUsage?: string | null;
   cpuLimit?: string | null;
   memoryUsage?: string | null;
   memoryLimit?: string | null;
-  containers: Array<{
-    name: string;
-    image?: string | null;
-    ready?: boolean | null;
-    restartCount?: number | null;
-    state?: string | null;
-  }>;
+  containers: ContainerView[];
+};
+
+type EventView = {
+  podName: string;
+  name: string;
+  eventType?: string | null;
+  reason?: string | null;
+  message?: string | null;
+  count?: number | null;
+  lastSeen?: string | null;
+  source?: string | null;
 };
 
 function readConfigOrSecrets(
@@ -82,6 +94,7 @@ function readPods(d: Deployment): PodView[] {
       ready: p.ready,
       restarts: p.restarts,
       lastRestartAt: p.lastRestartAt ?? undefined,
+      lastRestartReason: p.lastRestartReason ?? undefined,
       createdAt: p.createdAt ?? undefined,
       nodeName: p.nodeName ?? undefined,
       cpuUsage: p.cpuUsage,
@@ -95,10 +108,39 @@ function readPods(d: Deployment): PodView[] {
           ready: c.ready,
           restartCount: c.restartCount,
           state: c.state,
+          reason: c.reason,
+          message: c.message,
+          lastTerminated: c.lastTerminated
+            ? {
+                reason: c.lastTerminated.reason,
+                exitCode: c.lastTerminated.exitCode,
+                message: c.lastTerminated.message,
+                finishedAt: c.lastTerminated.finishedAt,
+              }
+            : null,
         }))
         .filter((c) => Boolean(c.name)),
     }))
     .filter((p) => Boolean(p.name));
+}
+
+function readPodEvents(d: Deployment): EventView[] {
+  return d
+    .pods()
+    .flatMap((p) => {
+      const podName = p.name ?? "";
+      return p.events.map((e) => ({
+        podName,
+        name: e.name ?? "",
+        eventType: e.eventType,
+        reason: e.reason,
+        message: e.message,
+        count: e.count,
+        lastSeen: e.lastSeen ?? undefined,
+        source: e.source ?? undefined,
+      }));
+    })
+    .filter((e) => Boolean(e.name));
 }
 
 export function DeploymentPage() {
@@ -140,6 +182,7 @@ export function DeploymentPage() {
     .filter((l): l is { key: string; value: string } => Boolean(l.key))
     .sort((a, b) => a.key.localeCompare(b.key));
   const snapPods = readPods(snap);
+  const events = readPodEvents(snap);
   const configMaps = readConfigOrSecrets(snap.configMaps);
   const secrets = readConfigOrSecrets(snap.secrets, true);
 
@@ -371,13 +414,15 @@ export function DeploymentPage() {
                     </td>
                     <td
                       className="num"
-                      title={
-                        p.lastRestartAt
-                          ? `Last restart: ${p.lastRestartAt}`
-                          : undefined
-                      }
+                      title={restartTitle(
+                        p.lastRestartReason,
+                        formatAbsolute(p.lastRestartAt)
+                      )}
                     >
                       {p.restarts ?? 0}
+                      {p.lastRestartReason ? (
+                        <div className="muted">{p.lastRestartReason}</div>
+                      ) : null}
                     </td>
                     <td
                       className="num age-cell"
@@ -403,17 +448,27 @@ export function DeploymentPage() {
                     <td>
                       <ul className="container-list">
                         {p.containers.map((c) => (
-                          <li key={c.name} title={c.image ?? undefined}>
+                          <li key={c.name} title={containerTitle(c)}>
                             <span
                               className={`ready-pill ${containerStateClass(c.state)}`}
                             >
-                              {c.state ?? "—"}
+                              {containerDisplay(c.state, c.reason)}
                             </span>{" "}
                             <span className="container-name">{c.name}</span>
                             {c.restartCount ? (
                               <span className="muted">
                                 {" "}
                                 ({c.restartCount})
+                              </span>
+                            ) : null}
+                            {c.state === "Running" &&
+                            c.lastTerminated?.reason ? (
+                              <span className="muted">
+                                {" "}
+                                last: {c.lastTerminated.reason}
+                                {c.lastTerminated.exitCode != null
+                                  ? ` (${c.lastTerminated.exitCode})`
+                                  : ""}
                               </span>
                             ) : null}{" "}
                             <CopyKubectlButton
@@ -437,6 +492,60 @@ export function DeploymentPage() {
           </div>
         )}
       </section>
+
+      {events.length > 0 ? (
+        <section className="dep-section">
+          <h2>Events ({events.length})</h2>
+          <p className="muted">Cluster events expire; this is not a full restart history.</p>
+          <div className="dep-table-wrap ns-block">
+            <table className="dep-table event-table">
+              <thead>
+                <tr>
+                  <th>Pod</th>
+                  <th>Type</th>
+                  <th>Reason</th>
+                  <th>Message</th>
+                  <th>Count</th>
+                  <th>Age</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((e, i) => (
+                  <tr key={`${e.podName}:${e.name}:${i}`}>
+                    <td className="metric">{e.podName}</td>
+                    <td>
+                      <span
+                        className={`ready-pill ${
+                          e.eventType === "Warning" ? "ready-warn" : "ready-ok"
+                        }`}
+                      >
+                        {e.eventType ?? "—"}
+                      </span>
+                    </td>
+                    <td
+                      className={
+                        e.eventType === "Warning" ? "event-warn" : undefined
+                      }
+                    >
+                      {e.reason ?? "—"}
+                    </td>
+                    <td className="event-msg">{e.message ?? "—"}</td>
+                    <td className="num">{e.count ?? 1}</td>
+                    <td
+                      className="num age-cell"
+                      title={formatAbsolute(e.lastSeen)}
+                    >
+                      {formatAge(e.lastSeen)}
+                    </td>
+                    <td className="metric">{e.source ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       <LogViewer
         context={contextName}

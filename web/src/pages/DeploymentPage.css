@@ -170,6 +170,17 @@
   font-size: 0.85rem;
 }
 
+.event-table .event-msg {
+  max-width: 36rem;
+  color: #c4c7cc;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.event-table .event-warn {
+  color: #f28b82;
+}
+
 .yaml-block summary {
   cursor: pointer;
   font-weight: 600;

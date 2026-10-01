@@ -16,6 +16,15 @@ import (
 	"github.com/cdreier/kubeql/internal/kube"
 )
 
+// Events is the resolver for the events field.
+func (r *podResolver) Events(ctx context.Context, obj *model.Pod) ([]*model.Event, error) {
+	list, err := r.Svc.ListPodEvents(ctx, obj.Context, obj.Namespace, obj.Name)
+	if err != nil {
+		return nil, err
+	}
+	return toEvents(list), nil
+}
+
 // Yaml is the resolver for the yaml field.
 func (r *podResolver) Yaml(ctx context.Context, obj *model.Pod) (string, error) {
 	return r.Svc.PodYAML(ctx, obj.Context, obj.Namespace, obj.Name)

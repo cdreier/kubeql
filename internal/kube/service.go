@@ -489,6 +489,14 @@ func (s *Service) PodYAML(ctx context.Context, kubeContext, namespace, name stri
 	return r.PodYAML(ctx, namespace, name)
 }
 
+func (s *Service) ListPodEvents(ctx context.Context, kubeContext, namespace, name string) ([]Event, error) {
+	r, err := s.readerFor(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+	return r.ListPodEvents(ctx, namespace, name)
+}
+
 func (s *Service) ListAPIResources(ctx context.Context, kubeContext string, namespaced *bool) ([]APIResource, error) {
 	r, err := s.readerFor(kubeContext)
 	if err != nil {

@@ -67,11 +67,23 @@ type ComplexityRoot struct {
 	}
 
 	Container struct {
-		Image        func(childComplexity int) int
-		Name         func(childComplexity int) int
-		Ready        func(childComplexity int) int
-		RestartCount func(childComplexity int) int
-		State        func(childComplexity int) int
+		Image          func(childComplexity int) int
+		LastTerminated func(childComplexity int) int
+		Message        func(childComplexity int) int
+		Name           func(childComplexity int) int
+		Ready          func(childComplexity int) int
+		Reason         func(childComplexity int) int
+		RestartCount   func(childComplexity int) int
+		State          func(childComplexity int) int
+	}
+
+	ContainerTermination struct {
+		ExitCode   func(childComplexity int) int
+		FinishedAt func(childComplexity int) int
+		Message    func(childComplexity int) int
+		Reason     func(childComplexity int) int
+		Signal     func(childComplexity int) int
+		StartedAt  func(childComplexity int) int
 	}
 
 	CronJob struct {
@@ -125,6 +137,17 @@ type ComplexityRoot struct {
 		Secrets           func(childComplexity int) int
 		Status            func(childComplexity int) int
 		Yaml              func(childComplexity int) int
+	}
+
+	Event struct {
+		Count     func(childComplexity int) int
+		EventType func(childComplexity int) int
+		FirstSeen func(childComplexity int) int
+		LastSeen  func(childComplexity int) int
+		Message   func(childComplexity int) int
+		Name      func(childComplexity int) int
+		Reason    func(childComplexity int) int
+		Source    func(childComplexity int) int
 	}
 
 	Job struct {
@@ -188,22 +211,24 @@ type ComplexityRoot struct {
 	}
 
 	Pod struct {
-		CPULimit      func(childComplexity int) int
-		CPUUsage      func(childComplexity int) int
-		Containers    func(childComplexity int) int
-		Context       func(childComplexity int) int
-		CreatedAt     func(childComplexity int) int
-		Labels        func(childComplexity int) int
-		LastRestartAt func(childComplexity int) int
-		MemoryLimit   func(childComplexity int) int
-		MemoryUsage   func(childComplexity int) int
-		Name          func(childComplexity int) int
-		Namespace     func(childComplexity int) int
-		NodeName      func(childComplexity int) int
-		Phase         func(childComplexity int) int
-		Ready         func(childComplexity int) int
-		Restarts      func(childComplexity int) int
-		Yaml          func(childComplexity int) int
+		CPULimit          func(childComplexity int) int
+		CPUUsage          func(childComplexity int) int
+		Containers        func(childComplexity int) int
+		Context           func(childComplexity int) int
+		CreatedAt         func(childComplexity int) int
+		Events            func(childComplexity int) int
+		Labels            func(childComplexity int) int
+		LastRestartAt     func(childComplexity int) int
+		LastRestartReason func(childComplexity int) int
+		MemoryLimit       func(childComplexity int) int
+		MemoryUsage       func(childComplexity int) int
+		Name              func(childComplexity int) int
+		Namespace         func(childComplexity int) int
+		NodeName          func(childComplexity int) int
+		Phase             func(childComplexity int) int
+		Ready             func(childComplexity int) int
+		Restarts          func(childComplexity int) int
+		Yaml              func(childComplexity int) int
 	}
 
 	Query struct {
@@ -293,6 +318,7 @@ type NamespaceResolver interface {
 	APIResources(ctx context.Context, obj *model.Namespace) ([]*model.APIResource, error)
 }
 type PodResolver interface {
+	Events(ctx context.Context, obj *model.Pod) ([]*model.Event, error)
 	Yaml(ctx context.Context, obj *model.Pod) (string, error)
 }
 type QueryResolver interface {
@@ -427,6 +453,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Container.Image(childComplexity), true
+	case "Container.lastTerminated":
+		if e.ComplexityRoot.Container.LastTerminated == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Container.LastTerminated(childComplexity), true
+	case "Container.message":
+		if e.ComplexityRoot.Container.Message == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Container.Message(childComplexity), true
 	case "Container.name":
 		if e.ComplexityRoot.Container.Name == nil {
 			break
@@ -439,6 +477,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Container.Ready(childComplexity), true
+	case "Container.reason":
+		if e.ComplexityRoot.Container.Reason == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Container.Reason(childComplexity), true
 	case "Container.restartCount":
 		if e.ComplexityRoot.Container.RestartCount == nil {
 			break
@@ -451,6 +495,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Container.State(childComplexity), true
+
+	case "ContainerTermination.exitCode":
+		if e.ComplexityRoot.ContainerTermination.ExitCode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ContainerTermination.ExitCode(childComplexity), true
+	case "ContainerTermination.finishedAt":
+		if e.ComplexityRoot.ContainerTermination.FinishedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ContainerTermination.FinishedAt(childComplexity), true
+	case "ContainerTermination.message":
+		if e.ComplexityRoot.ContainerTermination.Message == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ContainerTermination.Message(childComplexity), true
+	case "ContainerTermination.reason":
+		if e.ComplexityRoot.ContainerTermination.Reason == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ContainerTermination.Reason(childComplexity), true
+	case "ContainerTermination.signal":
+		if e.ComplexityRoot.ContainerTermination.Signal == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ContainerTermination.Signal(childComplexity), true
+	case "ContainerTermination.startedAt":
+		if e.ComplexityRoot.ContainerTermination.StartedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ContainerTermination.StartedAt(childComplexity), true
 
 	case "CronJob.active":
 		if e.ComplexityRoot.CronJob.Active == nil {
@@ -728,6 +809,55 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Deployment.Yaml(childComplexity), true
+
+	case "Event.count":
+		if e.ComplexityRoot.Event.Count == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Event.Count(childComplexity), true
+	case "Event.eventType":
+		if e.ComplexityRoot.Event.EventType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Event.EventType(childComplexity), true
+	case "Event.firstSeen":
+		if e.ComplexityRoot.Event.FirstSeen == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Event.FirstSeen(childComplexity), true
+	case "Event.lastSeen":
+		if e.ComplexityRoot.Event.LastSeen == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Event.LastSeen(childComplexity), true
+	case "Event.message":
+		if e.ComplexityRoot.Event.Message == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Event.Message(childComplexity), true
+	case "Event.name":
+		if e.ComplexityRoot.Event.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Event.Name(childComplexity), true
+	case "Event.reason":
+		if e.ComplexityRoot.Event.Reason == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Event.Reason(childComplexity), true
+	case "Event.source":
+		if e.ComplexityRoot.Event.Source == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Event.Source(childComplexity), true
 
 	case "Job.active":
 		if e.ComplexityRoot.Job.Active == nil {
@@ -1087,6 +1217,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Pod.CreatedAt(childComplexity), true
+	case "Pod.events":
+		if e.ComplexityRoot.Pod.Events == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Pod.Events(childComplexity), true
 	case "Pod.labels":
 		if e.ComplexityRoot.Pod.Labels == nil {
 			break
@@ -1099,6 +1235,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Pod.LastRestartAt(childComplexity), true
+	case "Pod.lastRestartReason":
+		if e.ComplexityRoot.Pod.LastRestartReason == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Pod.LastRestartReason(childComplexity), true
 	case "Pod.memoryLimit":
 		if e.ComplexityRoot.Pod.MemoryLimit == nil {
 			break
@@ -1594,8 +1736,32 @@ func (ec *executionContext) childFields_Container(ctx context.Context, field gra
 		return ec.fieldContext_Container_restartCount(ctx, field)
 	case "state":
 		return ec.fieldContext_Container_state(ctx, field)
+	case "reason":
+		return ec.fieldContext_Container_reason(ctx, field)
+	case "message":
+		return ec.fieldContext_Container_message(ctx, field)
+	case "lastTerminated":
+		return ec.fieldContext_Container_lastTerminated(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Container", field.Name)
+}
+
+func (ec *executionContext) childFields_ContainerTermination(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "reason":
+		return ec.fieldContext_ContainerTermination_reason(ctx, field)
+	case "exitCode":
+		return ec.fieldContext_ContainerTermination_exitCode(ctx, field)
+	case "signal":
+		return ec.fieldContext_ContainerTermination_signal(ctx, field)
+	case "message":
+		return ec.fieldContext_ContainerTermination_message(ctx, field)
+	case "startedAt":
+		return ec.fieldContext_ContainerTermination_startedAt(ctx, field)
+	case "finishedAt":
+		return ec.fieldContext_ContainerTermination_finishedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ContainerTermination", field.Name)
 }
 
 func (ec *executionContext) childFields_CronJob(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -1702,6 +1868,28 @@ func (ec *executionContext) childFields_Deployment(ctx context.Context, field gr
 		return ec.fieldContext_Deployment_secrets(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Deployment", field.Name)
+}
+
+func (ec *executionContext) childFields_Event(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "name":
+		return ec.fieldContext_Event_name(ctx, field)
+	case "eventType":
+		return ec.fieldContext_Event_eventType(ctx, field)
+	case "reason":
+		return ec.fieldContext_Event_reason(ctx, field)
+	case "message":
+		return ec.fieldContext_Event_message(ctx, field)
+	case "count":
+		return ec.fieldContext_Event_count(ctx, field)
+	case "firstSeen":
+		return ec.fieldContext_Event_firstSeen(ctx, field)
+	case "lastSeen":
+		return ec.fieldContext_Event_lastSeen(ctx, field)
+	case "source":
+		return ec.fieldContext_Event_source(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Event", field.Name)
 }
 
 func (ec *executionContext) childFields_Job(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -1840,6 +2028,8 @@ func (ec *executionContext) childFields_Pod(ctx context.Context, field graphql.C
 		return ec.fieldContext_Pod_restarts(ctx, field)
 	case "lastRestartAt":
 		return ec.fieldContext_Pod_lastRestartAt(ctx, field)
+	case "lastRestartReason":
+		return ec.fieldContext_Pod_lastRestartReason(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_Pod_createdAt(ctx, field)
 	case "nodeName":
@@ -1848,6 +2038,8 @@ func (ec *executionContext) childFields_Pod(ctx context.Context, field graphql.C
 		return ec.fieldContext_Pod_labels(ctx, field)
 	case "containers":
 		return ec.fieldContext_Pod_containers(ctx, field)
+	case "events":
+		return ec.fieldContext_Pod_events(ctx, field)
 	case "yaml":
 		return ec.fieldContext_Pod_yaml(ctx, field)
 	case "cpuUsage":
@@ -3341,6 +3533,222 @@ func (ec *executionContext) fieldContext_Container_state(_ context.Context, fiel
 	return graphql.NewScalarFieldContext("Container", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _Container_reason(ctx context.Context, field graphql.CollectedField, obj *model.Container) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Container_reason(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Container_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Container", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Container_message(ctx context.Context, field graphql.CollectedField, obj *model.Container) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Container_message(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Container_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Container", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Container_lastTerminated(ctx context.Context, field graphql.CollectedField, obj *model.Container) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Container_lastTerminated(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LastTerminated, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ContainerTermination) graphql.Marshaler {
+			return ec.marshalOContainerTermination2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐContainerTermination(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Container_lastTerminated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Container",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ContainerTermination(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ContainerTermination_reason(ctx context.Context, field graphql.CollectedField, obj *model.ContainerTermination) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ContainerTermination_reason(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ContainerTermination_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ContainerTermination", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ContainerTermination_exitCode(ctx context.Context, field graphql.CollectedField, obj *model.ContainerTermination) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ContainerTermination_exitCode(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ExitCode, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ContainerTermination_exitCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ContainerTermination", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ContainerTermination_signal(ctx context.Context, field graphql.CollectedField, obj *model.ContainerTermination) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ContainerTermination_signal(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Signal, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ContainerTermination_signal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ContainerTermination", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ContainerTermination_message(ctx context.Context, field graphql.CollectedField, obj *model.ContainerTermination) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ContainerTermination_message(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ContainerTermination_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ContainerTermination", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ContainerTermination_startedAt(ctx context.Context, field graphql.CollectedField, obj *model.ContainerTermination) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ContainerTermination_startedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ContainerTermination_startedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ContainerTermination", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _ContainerTermination_finishedAt(ctx context.Context, field graphql.CollectedField, obj *model.ContainerTermination) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ContainerTermination_finishedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FinishedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ContainerTermination_finishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ContainerTermination", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
 func (ec *executionContext) _CronJob_context(ctx context.Context, field graphql.CollectedField, obj *model.CronJob) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4465,6 +4873,190 @@ func (ec *executionContext) fieldContext_Deployment_secrets(_ context.Context, f
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _Event_name(ctx context.Context, field graphql.CollectedField, obj *model.Event) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Event_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Event_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Event", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Event_eventType(ctx context.Context, field graphql.CollectedField, obj *model.Event) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Event_eventType(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.EventType, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Event_eventType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Event", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Event_reason(ctx context.Context, field graphql.CollectedField, obj *model.Event) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Event_reason(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Event_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Event", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Event_message(ctx context.Context, field graphql.CollectedField, obj *model.Event) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Event_message(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Event_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Event", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Event_count(ctx context.Context, field graphql.CollectedField, obj *model.Event) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Event_count(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Count, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Event_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Event", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _Event_firstSeen(ctx context.Context, field graphql.CollectedField, obj *model.Event) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Event_firstSeen(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FirstSeen, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Event_firstSeen(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Event", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _Event_lastSeen(ctx context.Context, field graphql.CollectedField, obj *model.Event) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Event_lastSeen(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LastSeen, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Event_lastSeen(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Event", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _Event_source(ctx context.Context, field graphql.CollectedField, obj *model.Event) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Event_source(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Event_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Event", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Job_context(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
@@ -5915,6 +6507,29 @@ func (ec *executionContext) fieldContext_Pod_lastRestartAt(_ context.Context, fi
 	return graphql.NewScalarFieldContext("Pod", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _Pod_lastRestartReason(ctx context.Context, field graphql.CollectedField, obj *model.Pod) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Pod_lastRestartReason(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LastRestartReason, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Pod_lastRestartReason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Pod", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _Pod_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Pod) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6020,6 +6635,38 @@ func (ec *executionContext) fieldContext_Pod_containers(_ context.Context, field
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Container(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Pod_events(ctx context.Context, field graphql.CollectedField, obj *model.Pod) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Pod_events(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Pod().Events(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.Event) graphql.Marshaler {
+			return ec.marshalNEvent2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐEventᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Pod_events(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Pod",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Event(ctx, field)
 		},
 	}
 	return fc, nil
@@ -8816,6 +9463,84 @@ func (ec *executionContext) _Container(ctx context.Context, sel ast.SelectionSet
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "reason":
+			out.Values[i] = ec._Container_reason(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._Container_message(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "lastTerminated":
+			out.Values[i] = ec._Container_lastTerminated(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var containerTerminationImplementors = []string{"ContainerTermination"}
+
+func (ec *executionContext) _ContainerTermination(ctx context.Context, sel ast.SelectionSet, obj *model.ContainerTermination) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, containerTerminationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ContainerTermination")
+		case "reason":
+			out.Values[i] = ec._ContainerTermination_reason(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "exitCode":
+			out.Values[i] = ec._ContainerTermination_exitCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "signal":
+			out.Values[i] = ec._ContainerTermination_signal(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._ContainerTermination_message(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "startedAt":
+			out.Values[i] = ec._ContainerTermination_startedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "finishedAt":
+			out.Values[i] = ec._ContainerTermination_finishedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -9498,6 +10223,79 @@ func (ec *executionContext) _Deployment(ctx context.Context, sel ast.SelectionSe
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var eventImplementors = []string{"Event"}
+
+func (ec *executionContext) _Event(ctx context.Context, sel ast.SelectionSet, obj *model.Event) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, eventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Event")
+		case "name":
+			out.Values[i] = ec._Event_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "eventType":
+			out.Values[i] = ec._Event_eventType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reason":
+			out.Values[i] = ec._Event_reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._Event_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._Event_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "firstSeen":
+			out.Values[i] = ec._Event_firstSeen(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "lastSeen":
+			out.Values[i] = ec._Event_lastSeen(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "source":
+			out.Values[i] = ec._Event_source(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -10535,6 +11333,11 @@ func (ec *executionContext) _Pod(ctx context.Context, sel ast.SelectionSet, obj 
 			if out.Values[i] == graphql.RequiredNull {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "lastRestartReason":
+			out.Values[i] = ec._Pod_lastRestartReason(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "createdAt":
 			out.Values[i] = ec._Pod_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
@@ -10555,6 +11358,44 @@ func (ec *executionContext) _Pod(ctx context.Context, sel ast.SelectionSet, obj 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "events":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Pod_events(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "yaml":
 			field := field
 
@@ -11742,6 +12583,32 @@ func (ec *executionContext) marshalNDeployment2ᚖgithubᚗcomᚋcdreierᚋkubeq
 	return ec._Deployment(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNEvent2ᚕᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐEventᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Event) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNEvent2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐEvent(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNEvent2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐEvent(ctx context.Context, sel ast.SelectionSet, v *model.Event) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Event(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, error) {
 	res, err := graphql.UnmarshalInt(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -12170,6 +13037,13 @@ func (ec *executionContext) marshalOConfigMap2ᚖgithubᚗcomᚋcdreierᚋkubeql
 		return graphql.Null
 	}
 	return ec._ConfigMap(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOContainerTermination2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐContainerTermination(ctx context.Context, sel ast.SelectionSet, v *model.ContainerTermination) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ContainerTermination(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOCronJob2ᚖgithubᚗcomᚋcdreierᚋkubeqlᚋgraphᚋmodelᚐCronJob(ctx context.Context, sel ast.SelectionSet, v *model.CronJob) graphql.Marshaler {

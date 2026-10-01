@@ -21,6 +21,7 @@ type Fake struct {
 	Secrets         []Secret
 	APIResources    []APIResource
 	CustomResources []CustomResource
+	Events          []Event
 	// YAML keyed by "kind/namespace/name"
 	YAML map[string]string
 	// Logs keyed by "namespace/pod[/container]"
@@ -333,6 +334,22 @@ func (f *Fake) CustomResourceYAML(ctx context.Context, group, version, resource,
 		apiVersion = group + "/" + version
 	}
 	return fmt.Sprintf("apiVersion: %s\nkind: %s\nmetadata:\n  name: %s\n  namespace: %s\n", apiVersion, kind, name, namespace), nil
+}
+
+func (f *Fake) ListPodEvents(ctx context.Context, namespace, podName string) ([]Event, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	var out []Event
+	for _, e := range f.Events {
+		if namespace != "" && e.Namespace != namespace {
+			continue
+		}
+		if e.InvolvedName != podName {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out, nil
 }
 
 func (f *Fake) StreamPodLogs(ctx context.Context, opts LogOptions) (io.ReadCloser, error) {

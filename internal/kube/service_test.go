@@ -100,6 +100,22 @@ func TestPodsForDeployment(t *testing.T) {
 	}
 }
 
+func TestListPodEvents(t *testing.T) {
+	f := sampleCluster()
+	f.Events = []Event{
+		{Name: "api-1.1", Namespace: "prod", InvolvedName: "api-1", Reason: "BackOff", Type: "Warning"},
+		{Name: "web-1.1", Namespace: "default", InvolvedName: "web-1", Reason: "Started", Type: "Normal"},
+	}
+	svc := NewService(f)
+	got, err := svc.ListPodEvents(context.Background(), testCtx, "prod", "api-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Reason != "BackOff" {
+		t.Fatalf("expected BackOff for api-1, got %#v", got)
+	}
+}
+
 func TestDeploymentRestarts(t *testing.T) {
 	svc := NewService(sampleCluster())
 	d, _ := svc.GetDeployment(context.Background(), testCtx, "prod", "api")

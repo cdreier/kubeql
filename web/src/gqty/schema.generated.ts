@@ -120,10 +120,22 @@ export const generatedSchema = {
   Container: {
     __typename: { __type: "String!" },
     image: { __type: "String!" },
+    lastTerminated: { __type: "ContainerTermination" },
+    message: { __type: "String" },
     name: { __type: "String!" },
     ready: { __type: "Boolean!" },
+    reason: { __type: "String" },
     restartCount: { __type: "Int!" },
     state: { __type: "String!" },
+  },
+  ContainerTermination: {
+    __typename: { __type: "String!" },
+    exitCode: { __type: "Int!" },
+    finishedAt: { __type: "Time" },
+    message: { __type: "String" },
+    reason: { __type: "String" },
+    signal: { __type: "Int" },
+    startedAt: { __type: "Time" },
   },
   CronJob: {
     __typename: { __type: "String!" },
@@ -195,6 +207,17 @@ export const generatedSchema = {
     hasPod: { __type: "PodFilter" },
     labelSelector: { __type: "String" },
     nameContains: { __type: "String" },
+  },
+  Event: {
+    __typename: { __type: "String!" },
+    count: { __type: "Int!" },
+    eventType: { __type: "String!" },
+    firstSeen: { __type: "Time" },
+    lastSeen: { __type: "Time" },
+    message: { __type: "String!" },
+    name: { __type: "String!" },
+    reason: { __type: "String!" },
+    source: { __type: "String" },
   },
   Job: {
     __typename: { __type: "String!" },
@@ -295,8 +318,10 @@ export const generatedSchema = {
     cpuLimit: { __type: "String" },
     cpuUsage: { __type: "String" },
     createdAt: { __type: "Time" },
+    events: { __type: "[Event!]!" },
     labels: { __type: "[Label!]!" },
     lastRestartAt: { __type: "Time" },
+    lastRestartReason: { __type: "String" },
     memoryLimit: { __type: "String" },
     memoryUsage: { __type: "String" },
     name: { __type: "String!" },
@@ -475,13 +500,39 @@ export interface ConfigMap {
 export interface Container {
   __typename?: "Container";
   image?: Scalars["String"]["output"];
+  /**
+   * Previous container run after a restart. Null when it never restarted.
+   */
+  lastTerminated?: Maybe<ContainerTermination>;
+  message?: Maybe<Scalars["String"]["output"]>;
   name?: Scalars["String"]["output"];
   ready?: Scalars["Boolean"]["output"];
+  /**
+   * Waiting/Terminated reason (CrashLoopBackOff, OOMKilled, Error, …).
+   */
+  reason?: Maybe<Scalars["String"]["output"]>;
   restartCount?: Scalars["Int"]["output"];
   /**
-   * e.g. Running, Waiting, Terminated.
+   * Running, Waiting, Terminated, or Unknown.
    */
   state?: Scalars["String"]["output"];
+}
+
+/**
+ * Last container termination (containerStatuses.lastState.terminated).
+ * The most reliable restart reason for a container that has restarted.
+ */
+export interface ContainerTermination {
+  __typename?: "ContainerTermination";
+  exitCode?: Scalars["Int"]["output"];
+  finishedAt?: Maybe<Scalars["Time"]["output"]>;
+  message?: Maybe<Scalars["String"]["output"]>;
+  /**
+   * e.g. OOMKilled, Error, Completed.
+   */
+  reason?: Maybe<Scalars["String"]["output"]>;
+  signal?: Maybe<Scalars["Int"]["output"]>;
+  startedAt?: Maybe<Scalars["Time"]["output"]>;
 }
 
 export interface CronJob {
@@ -607,6 +658,28 @@ export interface Deployment {
    * Full object as YAML.
    */
   yaml?: Scalars["String"]["output"];
+}
+
+/**
+ * A Kubernetes Event about a pod (kubelet BackOff, Killing, Unhealthy, FailedScheduling, …).
+ * Events are ephemeral and may expire from the apiserver.
+ */
+export interface Event {
+  __typename?: "Event";
+  count?: Scalars["Int"]["output"];
+  /**
+   * Normal or Warning (Kubernetes event.type).
+   */
+  eventType?: Scalars["String"]["output"];
+  firstSeen?: Maybe<Scalars["Time"]["output"]>;
+  lastSeen?: Maybe<Scalars["Time"]["output"]>;
+  message?: Scalars["String"]["output"];
+  name?: Scalars["String"]["output"];
+  reason?: Scalars["String"]["output"];
+  /**
+   * Controller/component that emitted the event, e.g. kubelet.
+   */
+  source?: Maybe<Scalars["String"]["output"]>;
 }
 
 export interface Job {
@@ -786,8 +859,18 @@ export interface Pod {
    * Pod creation time (metadata.creationTimestamp).
    */
   createdAt?: Maybe<Scalars["Time"]["output"]>;
+  /**
+   * Kubernetes events involving this pod (BackOff, Killing, Unhealthy, FailedScheduling, …).
+   * Separate API call — omit from list queries and live subscriptions.
+   * Events are ephemeral and may expire from the apiserver.
+   */
+  events: Array<Event>;
   labels: Array<Label>;
   lastRestartAt?: Maybe<Scalars["Time"]["output"]>;
+  /**
+   * Reason from the most recent container lastState.terminated (OOMKilled, Error, …).
+   */
+  lastRestartReason?: Maybe<Scalars["String"]["output"]>;
   /**
    * Sum of container memory limits from the pod spec. Null when unset.
    */
