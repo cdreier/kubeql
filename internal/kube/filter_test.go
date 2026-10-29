@@ -56,10 +56,3 @@ func TestMatchCronJob(t *testing.T) {
 		t.Fatal("unexpected running match")
 	}
 }
-
-func TestSelectorToString(t *testing.T) {
-	s := SelectorToString(map[string]string{"app": "api"})
-	if s != "app=api" {
-		t.Fatalf("got %q", s)
-	}
-}

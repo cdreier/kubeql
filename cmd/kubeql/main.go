@@ -40,8 +40,12 @@ func serveCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "addr",
-				Value: ":8080",
-				Usage: "HTTP listen address",
+				Value: "127.0.0.1:8080",
+				Usage: "HTTP listen address (loopback by default; the API is unauthenticated and returns Secret values)",
+			},
+			&cli.StringSliceFlag{
+				Name:  "allow-host",
+				Usage: "Extra hostname (no port, scheme or wildcard) accepted in Host/Origin besides localhost, 127.0.0.1 and [::1] (repeatable)",
 			},
 			&cli.StringFlag{
 				Name: "kubeconfig",
@@ -70,7 +74,10 @@ func serveCommand() *cli.Command {
 			if err != nil {
 				return fmt.Errorf("kubernetes client: %w", err)
 			}
-			router := server.NewRouter(svc)
+			router, err := server.NewRouter(svc, server.Options{AllowedHosts: c.StringSlice("allow-host")})
+			if err != nil {
+				return err
+			}
 
 			appMode := c.Bool("app")
 			addr := c.String("addr")

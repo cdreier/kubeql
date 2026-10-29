@@ -7,6 +7,8 @@ import (
 	"io"
 	"strings"
 	"sync"
+
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // Fake is an in-memory ClusterReader for unit tests.
@@ -370,23 +372,12 @@ func (f *Fake) StreamPodLogs(ctx context.Context, opts LogOptions) (io.ReadClose
 	return io.NopCloser(bytes.NewBufferString("")), nil
 }
 
-// matchLabels is a minimal "k=v,k2=v2" matcher for the fake.
-func matchLabels(labels map[string]string, selector string) bool {
-	if selector == "" {
-		return true
+// matchLabels matches a Kubernetes label selector string (equality and
+// set-based syntax), like the API server does for the fake.
+func matchLabels(lbls map[string]string, selector string) bool {
+	sel, err := labels.Parse(selector)
+	if err != nil {
+		return false
 	}
-	for _, part := range strings.Split(selector, ",") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) != 2 {
-			return false
-		}
-		if labels[kv[0]] != kv[1] {
-			return false
-		}
-	}
-	return true
+	return sel.Matches(labels.Set(lbls))
 }

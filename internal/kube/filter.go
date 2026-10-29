@@ -177,15 +177,3 @@ func (f *PodFilter) LabelSelectorString() string {
 	}
 	return *f.LabelSelector
 }
-
-// SelectorToString converts a matchLabels map to a label selector string.
-func SelectorToString(sel map[string]string) string {
-	if len(sel) == 0 {
-		return ""
-	}
-	parts := make([]string, 0, len(sel))
-	for k, v := range sel {
-		parts = append(parts, k+"="+v)
-	}
-	return strings.Join(parts, ",")
-}

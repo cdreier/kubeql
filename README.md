@@ -37,8 +37,8 @@ make install
 kubeql serve
 
 # or during development — two terminals:
-make run          # API :8080  (UI if you already built web/dist)
-cd web && npm run dev   # Vite :5173, proxies /query → :8080
+make run          # API 127.0.0.1:8080  (UI if you already built web/dist)
+cd web && npm run dev   # Vite :5173, proxies /query → 127.0.0.1:8080
 
 # desktop-style window (Chrome --app on 127.0.0.1:17687; closes with the window)
 kubeql serve --app
@@ -55,10 +55,29 @@ XDG_CACHE_HOME="$HOME/snap/chromium/common" kubeql serve --app
 
 | URL | What |
 |-----|------|
-| http://localhost:8080/ | Embedded React UI |
-| http://localhost:8080/playground | GraphQL Playground |
-| http://localhost:8080/query | GraphQL HTTP/WS |
+| http://127.0.0.1:8080/ | Embedded React UI |
+| http://127.0.0.1:8080/playground | GraphQL Playground |
+| http://127.0.0.1:8080/query | GraphQL HTTP/WS |
 | http://localhost:5173/ | Vite dev UI (with proxy) |
+
+## Security
+
+kubeql has **no authentication** and returns everything your kubeconfig can read,
+including **decoded Secret values**. Therefore:
+
+- It listens on `127.0.0.1:8080` by default. Binding another interface
+  (`--addr 0.0.0.0:8080`) exposes your cluster credentials to the network — only do that on
+  trusted networks.
+- Requests are only accepted with a `Host` header of `localhost`, `127.0.0.1` or `[::1]`
+  (any port). Those names are accepted only from a loopback client, so binding a public
+  interface still rejects `Host: localhost` from the network. Other names that happen to
+  resolve to loopback (`127.0.0.1.nip.io`, …) are not accepted.
+- `/query` (HTTP and WebSocket) is only accepted without an `Origin`, from the same
+  origin, or from a loopback origin (e.g. the Vite dev server on `http://localhost:5173`).
+  A browser always sends `Origin` on a cross-site POST, so other websites cannot read the API.
+- To reach kubeql via another hostname, allow that hostname explicitly (no port, scheme or
+  wildcard), e.g. `kubeql serve --addr 0.0.0.0:8080 --allow-host mybox.lan` (repeatable).
+  That name is then accepted from any client — only do this on a trusted network.
 
 Cluster clients are created **lazily per kubeconfig context**. The server starts even when no `current-context` is set.
 

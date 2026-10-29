@@ -71,8 +71,9 @@ type Deployment struct {
 	AvailableReplicas int32
 	Status            string
 	Labels            map[string]string
-	// Selector is the pod label selector belonging to this deployment.
-	Selector map[string]string
+	// Selector is spec.selector as a label selector string (matchLabels and
+	// matchExpressions). Empty means "selects no pods" — see podSelector.
+	Selector string
 	// ConfigMapRefs / SecretRefs come from the pod template (env, volumes, …).
 	ConfigMapRefs []ObjectRef
 	SecretRefs    []ObjectRef
@@ -107,7 +108,7 @@ type Job struct {
 	StartTime      *time.Time
 	CompletionTime *time.Time
 	Labels         map[string]string
-	Selector       map[string]string
+	Selector       string // spec.selector as label selector string; empty selects no pods
 	OwnerKind      string
 	OwnerName      string
 	ConfigMapRefs  []ObjectRef

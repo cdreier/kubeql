@@ -434,12 +434,6 @@ func mapDeployment(d *appsv1.Deployment) Deployment {
 	if d.Spec.Replicas != nil {
 		replicas = *d.Spec.Replicas
 	}
-	selector := map[string]string{}
-	if d.Spec.Selector != nil {
-		for k, v := range d.Spec.Selector.MatchLabels {
-			selector[k] = v
-		}
-	}
 	cms, secrets := collectPodConfigAndSecrets(d.Spec.Template.Spec)
 	return Deployment{
 		Name:              d.Name,
@@ -449,10 +443,29 @@ func mapDeployment(d *appsv1.Deployment) Deployment {
 		AvailableReplicas: d.Status.AvailableReplicas,
 		Status:            deploymentStatus(d),
 		Labels:            copyMap(d.Labels),
-		Selector:          selector,
+		Selector:          podSelector(d.Spec.Selector),
 		ConfigMapRefs:     cms,
 		SecretRefs:        secrets,
 	}
+}
+
+// podSelector converts a workload's spec.selector (matchLabels and
+// matchExpressions) into a label selector string for listing its pods.
+//
+// It returns "" for a nil, empty or invalid selector, and callers treat ""
+// as "selects no pods". This is deliberately the safe choice: an empty
+// selector means labels.Everything() in Kubernetes, so passing it through
+// would attribute every pod in the namespace to the workload. The API server
+// rejects such selectors for Deployments and Jobs anyway.
+func podSelector(ls *metav1.LabelSelector) string {
+	if ls == nil {
+		return ""
+	}
+	sel, err := metav1.LabelSelectorAsSelector(ls)
+	if err != nil || sel.Empty() {
+		return ""
+	}
+	return sel.String()
 }
 
 func deploymentStatus(d *appsv1.Deployment) string {
@@ -505,12 +518,6 @@ func mapJob(j *batchv1.Job) Job {
 	if j.Spec.Completions != nil {
 		completions = *j.Spec.Completions
 	}
-	selector := map[string]string{}
-	if j.Spec.Selector != nil {
-		for k, v := range j.Spec.Selector.MatchLabels {
-			selector[k] = v
-		}
-	}
 	ownerKind, ownerName := controllerOwner(j.OwnerReferences)
 	cms, secrets := collectPodConfigAndSecrets(j.Spec.Template.Spec)
 	return Job{
@@ -524,7 +531,7 @@ func mapJob(j *batchv1.Job) Job {
 		StartTime:      metaTimePtr(j.Status.StartTime),
 		CompletionTime: metaTimePtr(j.Status.CompletionTime),
 		Labels:         copyMap(j.Labels),
-		Selector:       selector,
+		Selector:       podSelector(j.Spec.Selector),
 		OwnerKind:      ownerKind,
 		OwnerName:      ownerName,
 		ConfigMapRefs:  cms,

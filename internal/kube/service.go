@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"io"
 	"sort"
-	"strings"
 	"sync"
 	"time"
+
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // Service applies filters and composes ClusterReader calls for the GraphQL layer.
@@ -108,7 +109,11 @@ func (s *Service) ListDeployments(ctx context.Context, kubeContext, namespace st
 	if err != nil {
 		return nil, err
 	}
-	deps, err := r.ListDeployments(ctx, namespace, f.LabelSelectorString())
+	sel, err := parseLabelSelector(f.LabelSelectorString(), "deployment")
+	if err != nil {
+		return nil, err
+	}
+	deps, err := r.ListDeployments(ctx, namespace, sel)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +150,11 @@ func (s *Service) ListCronJobs(ctx context.Context, kubeContext, namespace strin
 	if err != nil {
 		return nil, err
 	}
-	list, err := r.ListCronJobs(ctx, namespace, f.LabelSelectorString())
+	sel, err := parseLabelSelector(f.LabelSelectorString(), "cronJob")
+	if err != nil {
+		return nil, err
+	}
+	list, err := r.ListCronJobs(ctx, namespace, sel)
 	if err != nil {
 		return nil, err
 	}
@@ -213,37 +222,10 @@ func jobSortTime(j Job) time.Time {
 	return time.Time{}
 }
 
-// PodsForJob returns pods owned by the job (via selector or job-name label).
+// PodsForJob returns pods selected by the job's spec.selector, optionally filtered.
+// A job without a usable selector has no pods (see podSelector).
 func (s *Service) PodsForJob(ctx context.Context, kubeContext string, j Job, f *PodFilter) ([]Pod, error) {
-	r, err := s.readerFor(kubeContext)
-	if err != nil {
-		return nil, err
-	}
-	selector := SelectorToString(j.Selector)
-	if selector == "" {
-		selector = "job-name=" + j.Name
-	}
-	pods, err := r.ListPods(ctx, j.Namespace, selector)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]Pod, 0, len(pods))
-	extra := f.LabelSelectorString()
-	for _, p := range pods {
-		if extra != "" && !labelsMatchSelector(p.Labels, extra) {
-			continue
-		}
-		pf := f
-		if f != nil {
-			cp := *f
-			cp.LabelSelector = nil
-			pf = &cp
-		}
-		if MatchPod(p, pf) {
-			out = append(out, p)
-		}
-	}
-	return out, nil
+	return s.podsForSelector(ctx, kubeContext, j.Namespace, j.Selector, f)
 }
 
 // PodsForCronJob returns pods belonging to Jobs owned by the CronJob.
@@ -276,7 +258,11 @@ func (s *Service) ListPods(ctx context.Context, kubeContext, namespace string, f
 	if err != nil {
 		return nil, err
 	}
-	pods, err := r.ListPods(ctx, namespace, f.LabelSelectorString())
+	sel, err := parseLabelSelector(f.LabelSelectorString(), "pod")
+	if err != nil {
+		return nil, err
+	}
+	pods, err := r.ListPods(ctx, namespace, sel)
 	if err != nil {
 		return nil, err
 	}
@@ -297,21 +283,34 @@ func (s *Service) GetPod(ctx context.Context, kubeContext, namespace, name strin
 	return r.GetPod(ctx, namespace, name)
 }
 
-// PodsForDeployment returns pods owned by the deployment (via selector), optionally filtered.
+// PodsForDeployment returns pods selected by the deployment's spec.selector, optionally filtered.
+// A deployment without a usable selector has no pods (see podSelector).
 func (s *Service) PodsForDeployment(ctx context.Context, kubeContext string, d Deployment, f *PodFilter) ([]Pod, error) {
+	return s.podsForSelector(ctx, kubeContext, d.Namespace, d.Selector, f)
+}
+
+// podsForSelector lists pods matching a workload selector and applies f.
+// An empty selector yields no pods instead of every pod in the namespace.
+func (s *Service) podsForSelector(ctx context.Context, kubeContext, namespace, selector string, f *PodFilter) ([]Pod, error) {
 	r, err := s.readerFor(kubeContext)
 	if err != nil {
 		return nil, err
 	}
-	selector := SelectorToString(d.Selector)
-	pods, err := r.ListPods(ctx, d.Namespace, selector)
+	if selector == "" {
+		return []Pod{}, nil
+	}
+	// The user's labelSelector is matched in memory on top of the workload selector.
+	extra, err := parseSelector(f.LabelSelectorString(), "pod")
+	if err != nil {
+		return nil, err
+	}
+	pods, err := r.ListPods(ctx, namespace, selector)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]Pod, 0, len(pods))
-	extra := f.LabelSelectorString()
 	for _, p := range pods {
-		if extra != "" && !labelsMatchSelector(p.Labels, extra) {
+		if !extra.Matches(labels.Set(p.Labels)) {
 			continue
 		}
 		// Apply remaining filter fields without re-applying labelSelector at list level.
@@ -615,23 +614,20 @@ func (s *Service) StreamPodLogs(ctx context.Context, kubeContext string, opts Lo
 	return r.StreamPodLogs(ctx, opts)
 }
 
-// labelsMatchSelector is a minimal equality selector matcher (k=v,k2=v2).
-func labelsMatchSelector(labels map[string]string, selector string) bool {
-	if selector == "" {
-		return true
+// parseLabelSelector returns a canonical selector string, or an error when the
+// user-supplied selector does not parse. Empty stays empty (list everything).
+func parseLabelSelector(selector, kind string) (string, error) {
+	sel, err := parseSelector(selector, kind)
+	if err != nil {
+		return "", err
 	}
-	for _, part := range strings.Split(selector, ",") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) != 2 {
-			return false
-		}
-		if labels[kv[0]] != kv[1] {
-			return false
-		}
+	return sel.String(), nil
+}
+
+func parseSelector(selector, kind string) (labels.Selector, error) {
+	sel, err := labels.Parse(selector)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s labelSelector: %w", kind, err)
 	}
-	return true
+	return sel, nil
 }

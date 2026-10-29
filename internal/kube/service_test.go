@@ -16,12 +16,12 @@ func sampleCluster() *Fake {
 		{
 			Name: "api", Namespace: "prod", Replicas: 2, ReadyReplicas: 2,
 			Status: "2/2", Labels: map[string]string{"app": "api"},
-			Selector: map[string]string{"app": "api"},
+			Selector: "app=api",
 		},
 		{
 			Name: "web", Namespace: "default", Replicas: 1, ReadyReplicas: 1,
 			Status: "1/1", Labels: map[string]string{"app": "web"},
-			Selector: map[string]string{"app": "web"},
+			Selector: "app=web",
 		},
 	}
 	f.Pods = []Pod{
@@ -165,12 +165,12 @@ func TestListCronJobs_AndJobs(t *testing.T) {
 		{
 			Name: "backup-1", Namespace: "prod", Status: "Complete", Succeeded: 1, Completions: 1,
 			OwnerKind: "CronJob", OwnerName: "backup",
-			Selector: map[string]string{"job-name": "backup-1"},
+			Selector: "job-name=backup-1",
 		},
 		{
 			Name: "other-1", Namespace: "prod", Status: "Complete",
 			OwnerKind: "CronJob", OwnerName: "other",
-			Selector: map[string]string{"job-name": "other-1"},
+			Selector: "job-name=other-1",
 		},
 	}
 	f.Pods = append(f.Pods, Pod{
